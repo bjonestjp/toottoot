@@ -1,5 +1,5 @@
 import { initAudio, playNote, playFail } from './audio.js';
-import { codeToPeerId } from './room-code.js';
+import { codeToPeerId, PEER_CONFIG } from './room-code.js';
 
 // State
 let playerName = '';
@@ -91,7 +91,7 @@ function connectToHost() {
         peer.destroy();
     }
 
-    peer = new Peer(); // Auto-generate ID
+    peer = new Peer(PEER_CONFIG);
 
     peer.on('open', (id) => {
         const hostId = codeToPeerId(roomCode);
@@ -116,7 +116,11 @@ function connectToHost() {
 
         conn.on('error', (err) => {
             console.error('Connection error:', err);
-            showError('Connection error: ' + err.message);
+            let msg = 'Connection error: ' + err.message;
+            if (err.message && err.message.includes('Negotiation')) {
+                msg = 'Connection negotiation failed. Please check that both devices are connected to the internet and tap Join again.';
+            }
+            showError(msg);
             switchView('join');
             joinBtn.textContent = 'Join';
             joinBtn.disabled = false;
@@ -125,9 +129,9 @@ function connectToHost() {
 
     peer.on('error', (err) => {
         console.error('Peer error:', err);
-        let msg = 'Failed to connect';
+        let msg = 'Failed to connect: ' + (err.message || err.type);
         if (err.type === 'peer-unavailable') {
-            msg = 'Room not found. Check the code.';
+            msg = 'Room not found. Check the code on the host screen.';
         }
         showError(msg);
         switchView('join');

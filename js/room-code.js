@@ -41,7 +41,8 @@ export function isValidRoomCode(code) {
  * @returns {string} (e.g. 'toot-1234')
  */
 export function codeToPeerId(code) {
-  let cleanCode = code.toUpperCase().trim();
+  let cleanCode = (code || '').toUpperCase().trim();
+  cleanCode = cleanCode.replace(/\s+/g, '-');
   if (/^\d{4}$/.test(cleanCode)) {
     cleanCode = `${ROOM_PREFIX}${cleanCode}`;
   }
@@ -54,5 +55,26 @@ export function codeToPeerId(code) {
  * @returns {string} (e.g. 'TOOT-1234')
  */
 export function peerIdToCode(peerId) {
-  return peerId.toUpperCase();
+  return (peerId || '').toUpperCase();
 }
+
+/**
+ * WebRTC configuration for PeerJS.
+ * Uses high-availability public STUN servers across Google, Cloudflare, and Twilio.
+ * Overrides PeerJS default config which contained deprecated/unreachable TURN servers.
+ */
+export const PEER_CONFIG = {
+  debug: 1,
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
+      { urls: 'stun:global.stun.twilio.com:3478' }
+    ],
+    iceCandidatePoolSize: 10
+  }
+};

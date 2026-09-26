@@ -1,6 +1,6 @@
 import { initAudio, playNote, playSuccess, playFail } from './audio.js';
 import { songs, getSongById, getRandomSong, getUniqueNotes } from './songs.js';
-import { generateRoomCode, codeToPeerId, peerIdToCode } from './room-code.js';
+import { generateRoomCode, codeToPeerId, peerIdToCode, PEER_CONFIG } from './room-code.js';
 
 // DOM Elements
 const views = {
@@ -46,7 +46,8 @@ function init() {
     // UI updates
     elRoomCode.textContent = roomCode;
     
-    const playUrl = `${window.location.origin}/play.html`;
+    // Correct URL resolving relative to current page location (works on GitHub Pages and localhost)
+    const playUrl = new URL('play.html', window.location.href).href;
     elJoinUrl.textContent = playUrl;
     
     // Generate QR Code
@@ -57,11 +58,20 @@ function init() {
         elQrCodeContainer.innerHTML = qr.createImgTag(5, 10);
     }
 
-    // Init PeerJS
-    peer = new Peer(peerId);
+    // Init PeerJS with custom STUN configuration
+    peer = new Peer(peerId, PEER_CONFIG);
     
     peer.on('open', (id) => {
         console.log('Host peer open with ID:', id);
+    });
+
+    peer.on('error', (err) => {
+        console.error('Host peer error:', err);
+        if (err.type === 'unavailable-id') {
+            console.warn('Room code taken, retrying with new code...');
+            if (peer) peer.destroy();
+            init();
+        }
     });
 
     peer.on('connection', (conn) => {
@@ -70,6 +80,10 @@ function init() {
         conn.on('close', () => {
             players = players.filter(p => p.id !== conn.peer);
             updatePlayerList();
+        });
+
+        conn.on('error', (err) => {
+            console.error('Host connection error with peer:', conn.peer, err);
         });
     });
 
