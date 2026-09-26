@@ -1,11 +1,10 @@
-import { initAudio, playNote, playFail } from './audio.js';
-import { codeToPeerId, PEER_CONFIG } from './room-code.js';
+import { initAudio, playNote, playFail } from './audio.js?v=3';
+import { PlayerTransport } from './transport.js?v=3';
 
 // State
 let playerName = '';
 let roomCode = '';
-let peer = null;
-let conn = null;
+let transport = null;
 let assignedNotes = [];
 let gameState = 'join'; // join | waiting | playing | win
 let audioInitialized = false;
@@ -87,56 +86,26 @@ function handleJoin() {
 }
 
 function connectToHost() {
-    if (peer) {
-        peer.destroy();
+    if (transport) {
+        transport.destroy();
     }
 
-    peer = new Peer(PEER_CONFIG);
-
-    peer.on('open', (id) => {
-        const hostId = codeToPeerId(roomCode);
-        conn = peer.connect(hostId, { reliable: true });
-
-        conn.on('open', () => {
-            // Connected to host
-            conn.send({ type: 'join', name: playerName });
+    transport = new PlayerTransport(roomCode, playerName, {
+        onMessage: handleMessage,
+        onReady: (myId) => {
+            console.log('Connected to host as', myId);
             waitingName.textContent = playerName;
             switchView('waiting');
             joinBtn.textContent = 'Join';
             joinBtn.disabled = false;
-        });
-
-        conn.on('data', handleMessage);
-
-        conn.on('close', () => {
-            showError('Connection to host lost');
-            switchView('join');
-            conn = null;
-        });
-
-        conn.on('error', (err) => {
+        },
+        onError: (err) => {
             console.error('Connection error:', err);
-            let msg = 'Connection error: ' + err.message;
-            if (err.message && err.message.includes('Negotiation')) {
-                msg = 'Connection negotiation failed. Please check that both devices are connected to the internet and tap Join again.';
-            }
-            showError(msg);
+            showError('Unable to connect to game room. Please check connection and try again.');
             switchView('join');
             joinBtn.textContent = 'Join';
             joinBtn.disabled = false;
-        });
-    });
-
-    peer.on('error', (err) => {
-        console.error('Peer error:', err);
-        let msg = 'Failed to connect: ' + (err.message || err.type);
-        if (err.type === 'peer-unavailable') {
-            msg = 'Room not found. Check the code on the host screen.';
         }
-        showError(msg);
-        switchView('join');
-        joinBtn.textContent = 'Join';
-        joinBtn.disabled = false;
     });
 }
 
@@ -231,8 +200,8 @@ function buildNoteButtons(notes) {
             playNote(note);
             
             // Network
-            if (conn && conn.open) {
-                conn.send({ type: 'note', note: note });
+            if (transport) {
+                transport.sendToHost({ type: 'note', note: note });
             }
         };
 

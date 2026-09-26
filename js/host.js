@@ -1,6 +1,7 @@
-import { initAudio, playNote, playSuccess, playFail } from './audio.js';
-import { songs, getSongById, getRandomSong, getUniqueNotes } from './songs.js';
-import { generateRoomCode, codeToPeerId, peerIdToCode, PEER_CONFIG } from './room-code.js';
+import { initAudio, playNote, playSuccess, playFail } from './audio.js?v=3';
+import { songs, getSongById, getRandomSong, getUniqueNotes } from './songs.js?v=3';
+import { generateRoomCode } from './room-code.js?v=3';
+import { HostTransport } from './transport.js?v=3';
 
 // DOM Elements
 const views = {
@@ -30,8 +31,8 @@ const btnNextSong = document.getElementById('btn-next-song');
 // State
 let gameState = 'lobby'; // lobby | countdown | playing | fail | win
 let roomCode = '';
-let peer = null;
-let players = []; // { id, name, conn, assignedNotes }
+let transport = null;
+let players = []; // { id, name, assignedNotes }
 let currentSong = null;
 let progress = 0; // index into currentSong.notes[]
 let failCount = 0;
@@ -41,7 +42,6 @@ let timerInterval = null;
 // Initialize
 function init() {
     roomCode = generateRoomCode();
-    const peerId = codeToPeerId(roomCode);
     
     // UI updates
     elRoomCode.textContent = roomCode;
@@ -58,33 +58,16 @@ function init() {
         elQrCodeContainer.innerHTML = qr.createImgTag(5, 10);
     }
 
-    // Init PeerJS with custom STUN configuration
-    peer = new Peer(peerId, PEER_CONFIG);
-    
-    peer.on('open', (id) => {
-        console.log('Host peer open with ID:', id);
-    });
-
-    peer.on('error', (err) => {
-        console.error('Host peer error:', err);
-        if (err.type === 'unavailable-id') {
-            console.warn('Room code taken, retrying with new code...');
-            if (peer) peer.destroy();
-            init();
+    // Connect Host WebSocket Transport
+    if (transport) transport.destroy();
+    transport = new HostTransport(roomCode, {
+        onPlayerMessage: (playerId, data) => handlePlayerMessage(playerId, data),
+        onReady: () => {
+            console.log('Host connected to room:', roomCode);
+        },
+        onError: (err) => {
+            console.error('Host connection error:', err);
         }
-    });
-
-    peer.on('connection', (conn) => {
-        conn.on('data', (data) => handlePlayerMessage(conn, data));
-        
-        conn.on('close', () => {
-            players = players.filter(p => p.id !== conn.peer);
-            updatePlayerList();
-        });
-
-        conn.on('error', (err) => {
-            console.error('Host connection error with peer:', conn.peer, err);
-        });
     });
 
     btnStartGame.addEventListener('click', startGame);
@@ -102,22 +85,22 @@ function switchView(viewName) {
     views[viewName].classList.add('active');
 }
 
-function handlePlayerMessage(conn, data) {
+function handlePlayerMessage(playerId, data) {
     if (data.type === 'join') {
-        const existing = players.find(p => p.id === conn.peer);
-        if (!existing) {
-            players.push({
-                id: conn.peer,
+        let player = players.find(p => p.id === playerId);
+        if (!player) {
+            player = {
+                id: playerId,
                 name: data.name,
-                conn: conn,
                 assignedNotes: []
-            });
+            };
+            players.push(player);
             updatePlayerList();
             
             // Send welcome
-            conn.send({
+            transport.sendToPlayer(playerId, {
                 type: 'welcome',
-                playerId: conn.peer,
+                playerId: playerId,
                 playerName: data.name
             });
             
@@ -125,7 +108,7 @@ function handlePlayerMessage(conn, data) {
             broadcastPlayerList();
         }
     } else if (data.type === 'note') {
-        handleNotePlayed(conn.peer, data.note);
+        handleNotePlayed(playerId, data.note);
     }
 }
 
@@ -149,11 +132,9 @@ function broadcastPlayerList() {
 }
 
 function broadcast(msg) {
-    players.forEach(p => {
-        if (p.conn && p.conn.open) {
-            p.conn.send(msg);
-        }
-    });
+    if (transport) {
+        transport.broadcast(msg);
+    }
 }
 
 function distributeNotes(uniqueNotes, players) {
@@ -222,15 +203,13 @@ function startGame() {
     // Assign to state and send
     players.forEach(p => {
         p.assignedNotes = assignments[p.id] || [];
-        if (p.conn && p.conn.open) {
-            p.conn.send({
-                type: 'assign-notes',
-                notes: p.assignedNotes,
-                songName: currentSong.name,
-                songEmoji: currentSong.emoji || '🎵',
-                difficulty: currentSong.difficulty || 1
-            });
-        }
+        transport.sendToPlayer(p.id, {
+            type: 'assign-notes',
+            notes: p.assignedNotes,
+            songName: currentSong.name,
+            songEmoji: currentSong.emoji || '🎵',
+            difficulty: currentSong.difficulty || 1
+        });
     });
     
     elSongTitle.textContent = currentSong.name;
