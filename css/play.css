@@ -1,0 +1,191 @@
+/* css/play.css */
+body {
+    margin: 0;
+    padding: 0;
+    height: 100dvh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: var(--bg-color, #1a1a2e);
+    color: var(--text-color, #ffffff);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+.view {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.view.active {
+    display: flex;
+}
+
+/* Join View */
+.input-group {
+    width: 100%;
+    max-width: 300px;
+    margin-bottom: 20px;
+}
+
+input {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.2rem;
+    border: 2px solid #303050;
+    border-radius: 12px;
+    background: #232340;
+    color: white;
+    text-align: center;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+input:focus {
+    outline: none;
+    border-color: #6b8dff;
+}
+
+.primary-btn {
+    width: 100%;
+    max-width: 300px;
+    padding: 15px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: white;
+    background: linear-gradient(135deg, #6b8dff, #c46bff);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: transform 0.1s, filter 0.1s;
+}
+
+.primary-btn:active {
+    transform: scale(0.95);
+    filter: brightness(1.1);
+}
+
+.error {
+    color: #ff6b6b;
+    margin-top: 15px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Waiting View */
+.pulse-text {
+    animation: pulse 1.5s infinite alternate;
+    font-size: 1.2rem;
+    text-align: center;
+    margin-top: 20px;
+    opacity: 0.8;
+}
+
+@keyframes pulse {
+    from { opacity: 0.5; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1.02); }
+}
+
+/* Playing View */
+#playing-view {
+    padding: 10px;
+}
+
+#note-buttons-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+    height: 100%;
+}
+
+.note-btn {
+    flex: 1 1 100%;
+    border: none;
+    border-radius: 20px;
+    font-size: 48px;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 8px 0 rgba(0,0,0,0.2), inset 0 4px 0 rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.note-btn:active, .note-btn.active {
+    transform: translateY(8px) scale(0.98);
+    box-shadow: 0 0 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.2);
+    filter: brightness(1.2);
+}
+
+/* Grid layouts based on number of buttons */
+.layout-2 .note-btn {
+    flex: 1 1 100%;
+}
+
+.layout-3 .note-btn {
+    flex: 1 1 100%;
+}
+
+.layout-4 .note-btn, .layout-more .note-btn {
+    flex: 1 1 40%;
+}
+
+/* Fail Overlay */
+#fail-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
+    background-color: rgba(255, 0, 0, 0.5);
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+
+#fail-overlay.show {
+    opacity: 1;
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* Win View */
+.win-content {
+    text-align: center;
+    animation: scaleUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+@keyframes scaleUp {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+#win-message {
+    font-size: 1.5rem;
+    margin: 20px 0;
+}

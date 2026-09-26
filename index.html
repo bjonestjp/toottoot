@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOOT - A Cooperative Music Game</title>
+  
+  <!-- Google Fonts for Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/common.css">
+  
+  <style>
+    /* Specific styles for Landing Page */
+    .landing-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+      z-index: 1; /* Above animated background */
+    }
+
+    .title-wrapper {
+      margin-bottom: 1rem;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+
+    .game-title {
+      font-size: 6rem;
+      font-weight: 400; /* Fredoka One is already thick */
+      margin: 0;
+      background: linear-gradient(to right, var(--note-c), var(--note-e), var(--note-g), var(--note-c5));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      line-height: 1.1;
+      letter-spacing: 2px;
+    }
+
+    .game-subtitle {
+      font-size: 1.5rem;
+      color: var(--text-primary);
+      margin-bottom: 2rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .description {
+      max-width: 500px;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      opacity: 0.9;
+      margin-bottom: 3rem;
+      line-height: 1.6;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Small musical notes decoration */
+    .note-deco {
+      position: absolute;
+      font-size: 2rem;
+      opacity: 0.2;
+      animation: float-note 6s ease-in-out infinite;
+      z-index: -1;
+    }
+
+    .note-1 { top: 20%; left: 15%; color: var(--note-c); animation-delay: 0s; }
+    .note-2 { top: 60%; left: 10%; color: var(--note-e); animation-delay: 1s; }
+    .note-3 { top: 30%; right: 15%; color: var(--note-g); animation-delay: 2s; }
+    .note-4 { top: 70%; right: 20%; color: var(--note-c5); animation-delay: 3s; }
+
+    @keyframes float-note {
+      0% { transform: translateY(0) rotate(0deg); opacity: 0.1; }
+      50% { transform: translateY(-20px) rotate(15deg); opacity: 0.3; }
+      100% { transform: translateY(0) rotate(0deg); opacity: 0.1; }
+    }
+
+    @media (max-width: 768px) {
+      .game-title { font-size: 4rem; }
+      .game-subtitle { font-size: 1.2rem; }
+      .description { font-size: 1rem; }
+      .action-buttons { flex-direction: column; width: 100%; max-width: 300px; }
+      .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Decorative Background Notes -->
+  <div class="note-deco note-1">🎵</div>
+  <div class="note-deco note-2">🎶</div>
+  <div class="note-deco note-3">♩</div>
+  <div class="note-deco note-4">♫</div>
+
+  <main class="landing-container">
+    <div class="title-wrapper">
+      <h1 class="game-title">TOOT</h1>
+      <h2 class="game-subtitle">A Cooperative Music Game</h2>
+    </div>
+
+    <p class="description">
+      Gather your friends and play together! Everyone gets a few notes on their device, and you must work together to play the melody perfectly.
+    </p>
+
+    <div class="action-buttons">
+      <a href="host.html" class="btn btn-primary btn-large">Host a Game</a>
+      <a href="play.html" class="btn btn-secondary btn-large">Join a Game</a>
+    </div>
+  </main>
+
+</body>
+</html>

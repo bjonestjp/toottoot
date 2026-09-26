@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toot - Game Board</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/host.css">
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <script type="module" src="js/host.js" defer></script>
+</head>
+<body>
+    <div id="app">
+        <!-- LOBBY VIEW -->
+        <div id="view-lobby" class="view active">
+            <div class="lobby-header">
+                <h1>Join the Game!</h1>
+                <p>Go to the URL below and enter the room code to play.</p>
+            </div>
+            
+            <div class="join-info">
+                <div class="code-container">
+                    <span class="label">Room Code:</span>
+                    <span id="room-code">----</span>
+                </div>
+                <div id="qr-code-container"></div>
+                <div class="url-info" id="join-url">localhost:3000/play.html</div>
+            </div>
+
+            <div class="players-section">
+                <h2>Players (<span id="player-count">0</span>)</h2>
+                <div id="player-list" class="player-grid">
+                    <!-- Player cards go here -->
+                    <div class="waiting-text">Waiting for players...</div>
+                </div>
+            </div>
+
+            <button id="btn-start-game" class="btn-primary" disabled>Start Game (Need 2+)</button>
+        </div>
+
+        <!-- COUNTDOWN VIEW -->
+        <div id="view-countdown" class="view">
+            <div class="countdown-text" id="countdown-number">3</div>
+        </div>
+
+        <!-- PLAYING VIEW -->
+        <div id="view-playing" class="view">
+            <div class="song-header">
+                <h1 id="song-title">Song Title</h1>
+                <span id="song-emoji" class="song-emoji">🎵</span>
+            </div>
+            
+            <div class="progress-section">
+                <div class="stats-row">
+                    <div class="stat">Fails: <span id="fail-count-display">0</span></div>
+                    <div class="stat">Time: <span id="timer-display">0:00</span></div>
+                </div>
+                
+                <div id="progress-dots" class="progress-dots">
+                    <!-- Dots go here -->
+                </div>
+            </div>
+            
+            <div class="bg-animation"></div>
+        </div>
+
+        <!-- FAIL VIEW -->
+        <div id="view-fail" class="view">
+            <h1 class="fail-text">WRONG NOTE!</h1>
+            <p>Restarting song...</p>
+        </div>
+
+        <!-- WIN VIEW -->
+        <div id="view-win" class="view">
+            <div class="win-content">
+                <h1>Song Complete! 🎉</h1>
+                
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-label">Time</div>
+                        <div class="stat-value" id="win-time">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Fails</div>
+                        <div class="stat-value" id="win-fails">--</div>
+                    </div>
+                </div>
+                
+                <button id="btn-next-song" class="btn-primary">Next Song</button>
+            </div>
+            <!-- Confetti container -->
+            <div id="confetti" class="confetti-container"></div>
+        </div>
+    </div>
+</body>
+</html>

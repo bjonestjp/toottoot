@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Toot - Player</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/play.css">
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <div id="join-view" class="view active">
+        <h1>Join Game</h1>
+        <div class="input-group">
+            <input type="text" id="player-name" placeholder="Your Name" autocomplete="off" autocorrect="off">
+        </div>
+        <div class="input-group">
+            <input type="text" id="room-code" placeholder="Room Code" autocomplete="off" autocorrect="off" autocapitalize="characters">
+        </div>
+        <button id="join-btn" class="primary-btn">Join</button>
+        <div id="error-message" class="error hidden"></div>
+    </div>
+
+    <div id="waiting-view" class="view">
+        <h2 id="waiting-name"></h2>
+        <div class="pulse-text">Connected! Waiting for host to start...</div>
+    </div>
+
+    <div id="playing-view" class="view">
+        <div id="note-buttons-container"></div>
+    </div>
+
+    <div id="fail-overlay" class="overlay hidden"></div>
+    
+    <div id="win-view" class="view">
+        <div class="win-content">
+            <h1>🎉 Success! 🎉</h1>
+            <p id="win-message"></p>
+            <div class="pulse-text">Waiting for next round...</div>
+        </div>
+    </div>
+
+    <script type="module" src="js/play.js"></script>
+</body>
+</html>
