@@ -1,7 +1,4 @@
-/**
- * songs.js
- * Contains the catalog of songs for Toot.
- */
+import { noteToFrequency } from './audio.js';
 
 export const songs = [
   {
@@ -19,6 +16,13 @@ export const songs = [
     emoji: '🐑'
   },
   {
+    id: 'jingle-bells',
+    name: 'Jingle Bells',
+    difficulty: 1,
+    notes: ['E4', 'E4', 'E4', 'E4', 'E4', 'E4', 'E4', 'G4', 'C4', 'D4', 'E4', 'F4', 'F4', 'F4', 'F4', 'F4', 'E4', 'E4', 'E4', 'E4', 'D4', 'D4', 'E4', 'D4', 'G4'],
+    emoji: '🔔'
+  },
+  {
     id: 'frere-jacques',
     name: 'Frère Jacques',
     difficulty: 2,
@@ -31,6 +35,13 @@ export const songs = [
     difficulty: 2,
     notes: ['C4', 'C4', 'G4', 'G4', 'A4', 'A4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'D4', 'C4', 'G4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'G4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'C4', 'C4', 'G4', 'G4', 'A4', 'A4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'D4', 'C4'],
     emoji: '⭐'
+  },
+  {
+    id: 'happy-birthday',
+    name: 'Happy Birthday',
+    difficulty: 2,
+    notes: ['G3', 'G3', 'A3', 'G3', 'C4', 'B3', 'G3', 'G3', 'A3', 'G3', 'D4', 'C4', 'G3', 'G3', 'G4', 'E4', 'C4', 'B3', 'A3', 'F4', 'F4', 'E4', 'C4', 'D4', 'C4'],
+    emoji: '🎂'
   },
   {
     id: 'ode-to-joy',
@@ -47,6 +58,13 @@ export const songs = [
     emoji: '🎺'
   },
   {
+    id: 'beethoven-5th',
+    name: "Beethoven's 5th",
+    difficulty: 3,
+    notes: ['G4', 'G4', 'G4', 'D#4', 'F4', 'F4', 'F4', 'D4', 'G4', 'G4', 'G4', 'D#4', 'F4', 'F4', 'F4', 'D4', 'D#4', 'D#4', 'D#4', 'C4'],
+    emoji: '⚡'
+  },
+  {
     id: 'amazing-grace',
     name: 'Amazing Grace',
     difficulty: 4,
@@ -61,11 +79,25 @@ export const songs = [
     emoji: '🥂'
   },
   {
+    id: 'tetris',
+    name: 'Tetris (Korobeiniki)',
+    difficulty: 4,
+    notes: ['E4', 'B3', 'C4', 'D4', 'C4', 'B3', 'A3', 'A3', 'C4', 'E4', 'D4', 'C4', 'B3', 'C4', 'D4', 'E4', 'C4', 'A3', 'A3', 'D4', 'F4', 'A4', 'G4', 'F4', 'E4', 'C4', 'E4', 'D4', 'C4', 'B3', 'B3', 'C4', 'D4', 'E4', 'C4', 'A3', 'A3'],
+    emoji: '🕹️'
+  },
+  {
     id: 'greensleeves',
     name: 'Greensleeves',
     difficulty: 5,
     notes: ['A3', 'C4', 'D4', 'E4', 'F4', 'E4', 'D4', 'B3', 'G3', 'A3', 'B3', 'C4', 'A3', 'A3', 'G#3', 'A3', 'B3', 'G#3', 'E3', 'A3', 'C4', 'D4', 'E4', 'F4', 'E4', 'D4', 'B3', 'G3', 'A3', 'B3', 'C4', 'B3', 'A3', 'G#3', 'A3', 'B3', 'A3'],
     emoji: '🏰'
+  },
+  {
+    id: 'mountain-king',
+    name: 'Mountain King',
+    difficulty: 5,
+    notes: ['B3', 'C#4', 'D4', 'E4', 'F#4', 'D4', 'F#4', 'F4', 'C4', 'F4', 'E4', 'C4', 'E4', 'B3', 'C#4', 'D4', 'E4', 'F#4', 'D4', 'F#4', 'B4', 'F#4', 'D4', 'C#4', 'B3'],
+    emoji: '🏔️'
   }
 ];
 
@@ -75,22 +107,13 @@ songs.forEach(song => {
 });
 
 /**
- * Helper to get unique notes from a song, sorted logically.
+ * Helper to get unique notes from a song, sorted logically by pitch.
  * @param {Object} song 
  * @returns {string[]} Array of unique note names
  */
 export function getUniqueNotes(song) {
   const unique = [...new Set(song.notes)];
-  
-  // Custom sorting function based on frequency or chromatic scale
-  // For simplicity, we can sort by string, but 'G3' should be before 'C4'
-  const noteOrder = {
-    'C3': 1, 'C#3': 2, 'D3': 3, 'D#3': 4, 'E3': 5, 'F3': 6, 'F#3': 7, 'G3': 8, 'G#3': 9, 'A3': 10, 'A#3': 11, 'B3': 12,
-    'C4': 13, 'C#4': 14, 'D4': 15, 'D#4': 16, 'E4': 17, 'F4': 18, 'F#4': 19, 'G4': 20, 'G#4': 21, 'A4': 22, 'A#4': 23, 'B4': 24,
-    'C5': 25
-  };
-  
-  return unique.sort((a, b) => (noteOrder[a] || 0) - (noteOrder[b] || 0));
+  return unique.sort((a, b) => (noteToFrequency(a) || 0) - (noteToFrequency(b) || 0));
 }
 
 /**

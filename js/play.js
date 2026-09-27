@@ -1,5 +1,5 @@
-import { initAudio, playNote, startNote, stopNote, playFail } from './audio.js?v=4';
-import { PlayerTransport } from './transport.js?v=4';
+import { initAudio, playNote, startNote, stopNote, playFail } from './audio.js?v=5';
+import { PlayerTransport } from './transport.js?v=5';
 
 // State
 let playerName = '';
@@ -169,8 +169,21 @@ function buildNoteButtons(notes) {
         const octave = parseInt(note.replace(/[^0-9]/g, ''), 10) || 4;
         
         if (letterCounts[letter] > 1) {
-            btn.textContent = octave > 4 ? `high ${letter}` : (octave < 4 ? `low ${letter}` : letter);
-            btn.style.fontSize = '32px'; // Smaller font for longer text
+            const playerOctaves = notes
+                .filter(n => n.replace(/[0-9]/g, '') === letter)
+                .map(n => parseInt(n.replace(/[^0-9]/g, ''), 10) || 4)
+                .sort((a, b) => a - b);
+            const minOct = playerOctaves[0];
+            const maxOct = playerOctaves[playerOctaves.length - 1];
+
+            if (octave === minOct) {
+                btn.textContent = `low ${letter}`;
+            } else if (octave === maxOct) {
+                btn.textContent = `high ${letter}`;
+            } else {
+                btn.textContent = letter;
+            }
+            btn.style.fontSize = '32px';
         } else {
             btn.textContent = letter;
         }
