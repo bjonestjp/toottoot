@@ -28,13 +28,14 @@ class Visualizer {
   constructor(canvas) {
     this.canvas = canvas;
     this.gl = null;
+    this.ctx2d = null;
     this.animationFrameId = null;
     
     // Physics & State
     this.time = 0;
     this.lastFrameTime = performance.now();
-    this.ambientEnergy = 0.28;
-    this.energy = 0.28;
+    this.ambientEnergy = 0.30;
+    this.energy = 0.30;
     this.mode = 'lobby'; // lobby | rehearsal | performance
     
     // Colors
@@ -52,29 +53,42 @@ class Visualizer {
     // Config
     this.numRibbons = 4;
     this.ribbonSegments = 140;
-    this.numParticles = 1800;
+    this.numParticles = 1600;
     this.particles = null;
 
     this.init();
   }
 
   init() {
-    const gl = this.canvas.getContext('webgl', {
+    console.log('[Toot Visualizer] Initializing...');
+    
+    // Try WebGL with fallback to experimental-webgl
+    const glOptions = {
       alpha: false,
       antialias: true,
       depth: false,
       powerPreference: 'high-performance'
-    });
+    };
 
-    if (!gl) {
-      console.warn('WebGL not supported for visualizer background');
-      return;
+    let gl = null;
+    try {
+      gl = this.canvas.getContext('webgl', glOptions) || 
+           this.canvas.getContext('experimental-webgl', glOptions);
+    } catch (e) {
+      console.warn('[Toot Visualizer] WebGL context exception:', e);
     }
-    this.gl = gl;
 
-    this.setupShaders();
-    this.setupRibbons();
-    this.setupParticles();
+    if (gl) {
+      this.gl = gl;
+      this.setupShaders();
+      this.setupRibbons();
+      this.setupParticles();
+      console.log('[Toot Visualizer] WebGL engine active');
+    } else {
+      console.warn('[Toot Visualizer] WebGL not available, falling back to 2D Canvas');
+      this.ctx2d = this.canvas.getContext('2d');
+      this.setupParticles2D();
+    }
 
     this.resize = this.resize.bind(this);
     window.addEventListener('resize', this.resize);
@@ -85,15 +99,18 @@ class Visualizer {
   }
 
   resize() {
-    if (!this.gl) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.floor(window.innerWidth * dpr);
-    const h = Math.floor(window.innerHeight * dpr);
+    const w = Math.floor((window.innerWidth || 1920) * dpr);
+    const h = Math.floor((window.innerHeight || 1080) * dpr);
+    
     if (this.canvas.width !== w || this.canvas.height !== h) {
       this.canvas.width = w;
       this.canvas.height = h;
     }
-    this.gl.viewport(0, 0, w, h);
+    
+    if (this.gl) {
+      this.gl.viewport(0, 0, w, h);
+    }
   }
 
   createShader(type, source) {
@@ -102,7 +119,7 @@ class Visualizer {
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+      console.error('[Toot Visualizer] Shader compile error:', gl.getShaderInfoLog(shader));
       gl.deleteShader(shader);
       return null;
     }
@@ -113,24 +130,24 @@ class Visualizer {
     const gl = this.gl;
     const vs = this.createShader(gl.VERTEX_SHADER, vsSource);
     const fs = this.createShader(gl.FRAGMENT_SHADER, fsSource);
+    if (!vs || !fs) return null;
+
     const program = gl.createProgram();
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error('Program link error:', gl.getProgramInfoLog(program));
+      console.error('[Toot Visualizer] Program link error:', gl.getProgramInfoLog(program));
       return null;
     }
     return program;
   }
 
   setupShaders() {
-    const gl = this.gl;
-
-    // --- Ribbon Shaders ---
+    // --- Ribbon Shaders (GLSL ES 1.0 compliant) ---
     const ribbonVS = `
       attribute vec3 aPosition;
-      attribute vec2 aRibbonCoord; // x: progress (0..1), y: edge (-1..1)
+      attribute vec2 aRibbonCoord;
       
       uniform vec2 uResolution;
       uniform float uTime;
@@ -141,14 +158,12 @@ class Visualizer {
       void main() {
         vRibbonCoord = aRibbonCoord;
         
-        // 3D Perspective projection
-        float z = aPosition.z + 3.0; // Distance offset
+        float z = aPosition.z + 3.0;
         vDepth = clamp(z / 6.0, 0.0, 1.0);
         
         float fov = 1.8;
         vec2 projected = (aPosition.xy / z) * fov;
         
-        // Correct aspect ratio
         float aspect = uResolution.x / uResolution.y;
         if (aspect > 1.0) {
           projected.x /= aspect;
@@ -172,24 +187,20 @@ class Visualizer {
 
       void main() {
         float edge = abs(vRibbonCoord.y);
-        // Soft glowing ribbon core with neon edge falloff
         float core = pow(1.0 - edge, 2.0);
         float glow = exp(-edge * 2.2);
         
-        // Color gradient along ribbon length
         vec3 col = mix(uColor1, uColor2, vRibbonCoord.x);
-        
-        // Energy flare
         col += vec3(0.2, 0.2, 0.25) * uEnergy;
         
-        float alpha = (core * 0.7 + glow * 0.3) * (0.85 - vDepth * 0.45);
-        gl_FragColor = vec4(col * alpha, alpha);
+        float alpha = (core * 0.75 + glow * 0.35) * (0.9 - vDepth * 0.4);
+        gl_FragColor = vec4(col, alpha);
       }
     `;
 
     this.ribbonProgram = this.createProgram(ribbonVS, ribbonFS);
 
-    // --- Particle Shaders ---
+    // --- Particle Shaders (GLSL ES 1.0 compliant) ---
     const particleVS = `
       attribute vec3 aPosition;
       attribute float aPhase;
@@ -215,7 +226,6 @@ class Visualizer {
           projected.y *= aspect;
         }
 
-        // Depth-scaled point size
         float pSize = (aSize * (1.0 + uEnergy * 0.6)) * (450.0 / z) * (uResolution.y / 1000.0);
         gl_PointSize = clamp(pSize, 1.5, 32.0);
         gl_Position = vec4(projected, 0.0, 1.0);
@@ -235,17 +245,16 @@ class Visualizer {
       varying float vPhase;
 
       void main() {
-        // Circular soft-particle glow
-        vec2 coord = gl_PointCoord - vec2(0.5);
+        vec2 coord = gl_PointCoord - vec2(0.5, 0.5);
         float dist = length(coord);
         if (dist > 0.5) discard;
 
         float glow = exp(-dist * dist * 10.0);
         vec3 col = mix(uColor1, uColor2, sin(vPhase * 3.14159) * 0.5 + 0.5);
-        col += vec3(0.25) * uEnergy;
+        col += vec3(0.25, 0.25, 0.25) * uEnergy;
 
-        float alpha = glow * vAlpha * (0.6 + uEnergy * 0.4);
-        gl_FragColor = vec4(col * alpha, alpha);
+        float alpha = glow * vAlpha * (0.65 + uEnergy * 0.35);
+        gl_FragColor = vec4(col, alpha);
       }
     `;
 
@@ -254,7 +263,6 @@ class Visualizer {
 
   setupRibbons() {
     const gl = this.gl;
-    // Pre-allocate buffer for dynamic ribbon vertices
     const floatsPerVertex = 5;
     const totalVertices = this.numRibbons * this.ribbonSegments * 2;
     this.ribbonArray = new Float32Array(totalVertices * floatsPerVertex);
@@ -264,12 +272,10 @@ class Visualizer {
   setupParticles() {
     const gl = this.gl;
     const num = this.numParticles;
-    // Each particle: x, y, z, phase, size, vx, vy, vz
     this.particles = new Float32Array(num * 8);
 
     for (let i = 0; i < num; i++) {
       const idx = i * 8;
-      // Cylindrical / toroidal cloud distribution
       const theta = Math.random() * Math.PI * 2;
       const radius = 0.3 + Math.random() * 2.2;
       const z = (Math.random() - 0.5) * 2.5;
@@ -278,15 +284,29 @@ class Visualizer {
       this.particles[idx + 1] = Math.sin(theta) * radius; // y
       this.particles[idx + 2] = z;                       // z
       this.particles[idx + 3] = Math.random();            // phase
-      this.particles[idx + 4] = 1.0 + Math.random() * 3.0; // size
-      // Angular velocity + gentle z-drift
+      this.particles[idx + 4] = 1.2 + Math.random() * 3.2; // size
       this.particles[idx + 5] = -Math.sin(theta) * (0.15 + Math.random() * 0.25); // vx
       this.particles[idx + 6] = Math.cos(theta) * (0.15 + Math.random() * 0.25);  // vy
       this.particles[idx + 7] = (Math.random() - 0.5) * 0.2;                      // vz
     }
 
     this.particleBuffer = gl.createBuffer();
-    this.particleRenderData = new Float32Array(num * 5); // x,y,z, phase, size
+    this.particleRenderData = new Float32Array(num * 5);
+  }
+
+  setupParticles2D() {
+    const num = 120;
+    this.particles2D = [];
+    for (let i = 0; i < num; i++) {
+      this.particles2D.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8,
+        r: 1.5 + Math.random() * 3.5,
+        alpha: 0.2 + Math.random() * 0.7
+      });
+    }
   }
 
   updateRibbons(dt) {
@@ -297,20 +317,17 @@ class Visualizer {
 
     const t = this.time;
     const energy = this.energy;
-
-    // Amplitude and frequency influenced by energy
     const ampBoost = 1.0 + energy * 0.6;
-    const ribbonHalfWidth = 0.075 * (1.0 + energy * 0.4);
+    const ribbonHalfWidth = 0.08 * (1.0 + energy * 0.4);
 
     for (let r = 0; r < numRibbons; r++) {
       const strandOffset = (r / numRibbons) * Math.PI * 2;
       const phaseSpeed = 0.7 + r * 0.15;
 
       for (let s = 0; s < segments; s++) {
-        const u = s / (segments - 1); // 0 to 1 along length
+        const u = s / (segments - 1);
         const param = u * 4.0 + t * phaseSpeed;
 
-        // 3D Lissajous / parametric spine curve
         const cx = (Math.sin(param * 1.1 + strandOffset) * 1.25 + 
                     Math.cos(param * 0.7 - t * 0.3) * 0.55) * ampBoost;
         const cy = (Math.cos(param * 0.9 + strandOffset * 0.7) * 0.85 + 
@@ -318,7 +335,6 @@ class Visualizer {
         const cz = (Math.sin(param * 0.6 + strandOffset * 1.3) * 1.1 + 
                     Math.cos(param * 1.1) * 0.3);
 
-        // Approximate tangent for ribbon width normal
         const dParam = 0.05;
         const nextParam = param + dParam;
         const nx = (Math.sin(nextParam * 1.1 + strandOffset) * 1.25 + 
@@ -330,18 +346,15 @@ class Visualizer {
         const ty = ny - cy;
         const tLen = Math.sqrt(tx * tx + ty * ty) || 1.0;
         
-        // Perpendicular vector in XY plane
         const px = (-ty / tLen) * ribbonHalfWidth;
         const py = (tx / tLen) * ribbonHalfWidth;
 
-        // Vertex 1: left edge (v = -1)
         arr[ptr++] = cx - px;
         arr[ptr++] = cy - py;
         arr[ptr++] = cz;
         arr[ptr++] = u;
         arr[ptr++] = -1.0;
 
-        // Vertex 2: right edge (v = 1)
         arr[ptr++] = cx + px;
         arr[ptr++] = cy + py;
         arr[ptr++] = cz;
@@ -361,19 +374,16 @@ class Visualizer {
     for (let i = 0; i < num; i++) {
       const idx = i * 8;
       
-      // Update position with velocity
       p[idx]     += p[idx + 5] * dt * speedMult;
       p[idx + 1] += p[idx + 6] * dt * speedMult;
       p[idx + 2] += p[idx + 7] * dt * speedMult;
-      p[idx + 3] += dt * 0.2; // phase
+      p[idx + 3] += dt * 0.2;
 
-      // Gravity/pull toward center vortex
       const x = p[idx];
       const y = p[idx + 1];
       const z = p[idx + 2];
       const dist2D = Math.sqrt(x * x + y * y);
 
-      // Re-circulate particles if they escape boundary
       if (dist2D > 3.2 || dist2D < 0.15 || z > 1.8 || z < -1.8) {
         const theta = Math.random() * Math.PI * 2;
         const rad = 0.5 + Math.random() * 2.0;
@@ -389,7 +399,7 @@ class Visualizer {
       out[outPtr++] = p[idx + 1];
       out[outPtr++] = p[idx + 2];
       out[outPtr++] = p[idx + 3];
-      out[outPtr++] = p[idx + 4]; // size
+      out[outPtr++] = p[idx + 4];
     }
   }
 
@@ -400,11 +410,10 @@ class Visualizer {
     const noteColor = isHighC ? NOTE_COLORS['c5'] : (NOTE_COLORS[cleanNote] || DEFAULT_COLOR_1);
 
     // Energy spike
-    this.energy = Math.min(2.0, this.energy + 0.65);
+    this.energy = Math.min(2.0, this.energy + 0.7);
 
-    // Dynamic color transition to match note
+    // Transition colors
     this.targetColor1 = [...noteColor];
-    // Secondary complementary harmonic tint
     this.targetColor2 = [
       Math.min(1.0, noteColor[0] * 0.4 + 0.3),
       Math.min(1.0, noteColor[1] * 0.4 + 0.2),
@@ -415,111 +424,138 @@ class Visualizer {
   setMode(mode) {
     this.mode = mode;
     if (mode === 'performance' || mode === 'showtime') {
-      this.ambientEnergy = 0.42;
+      this.ambientEnergy = 0.45;
     } else if (mode === 'rehearsal') {
-      this.ambientEnergy = 0.32;
+      this.ambientEnergy = 0.35;
     } else {
-      this.ambientEnergy = 0.25;
+      this.ambientEnergy = 0.28;
     }
   }
 
   render(timestamp) {
-    if (!this.gl) return;
-    const gl = this.gl;
-
     const dt = Math.min((timestamp - this.lastFrameTime) / 1000, 0.1);
     this.lastFrameTime = timestamp;
 
-    // Advance time and decay energy
     this.time += dt * (0.8 + this.energy * 1.5);
     this.energy += (this.ambientEnergy - this.energy) * Math.min(dt * 2.5, 1.0);
 
-    // Smooth color lerp back to default ambient palette
     const colorLerpSpeed = dt * 1.8;
     for (let c = 0; c < 3; c++) {
-      // Lerp target back to default slowly
       this.targetColor1[c] += (DEFAULT_COLOR_1[c] - this.targetColor1[c]) * dt * 0.7;
       this.targetColor2[c] += (DEFAULT_COLOR_2[c] - this.targetColor2[c]) * dt * 0.7;
 
-      // Current follows target
       this.currentColor1[c] += (this.targetColor1[c] - this.currentColor1[c]) * colorLerpSpeed;
       this.currentColor2[c] += (this.targetColor2[c] - this.currentColor2[c]) * colorLerpSpeed;
     }
 
-    // Update geometry
-    this.updateRibbons(dt);
-    this.updateParticles(dt);
+    // --- WebGL Render Path ---
+    if (this.gl && this.ribbonProgram && this.particleProgram) {
+      const gl = this.gl;
 
-    // Deep space dark background clear
-    gl.clearColor(0.039, 0.039, 0.102, 1.0); // #0a0a1a
-    gl.clear(gl.COLOR_BUFFER_BIT);
+      this.updateRibbons(dt);
+      this.updateParticles(dt);
 
-    // Additive blending for luminous neon trails
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+      gl.clearColor(0.039, 0.039, 0.102, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // --- Draw Ribbons ---
-    gl.useProgram(this.ribbonProgram);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.ribbonBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, this.ribbonArray, gl.DYNAMIC_DRAW);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 
-    const rProg = this.ribbonProgram;
-    const aPos = gl.getAttribLocation(rProg, 'aPosition');
-    const aCoord = gl.getAttribLocation(rProg, 'aRibbonCoord');
+      // --- Draw Ribbons ---
+      gl.useProgram(this.ribbonProgram);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.ribbonBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, this.ribbonArray, gl.DYNAMIC_DRAW);
 
-    const uRes = gl.getUniformLocation(rProg, 'uResolution');
-    const uTime = gl.getUniformLocation(rProg, 'uTime');
-    const uCol1 = gl.getUniformLocation(rProg, 'uColor1');
-    const uCol2 = gl.getUniformLocation(rProg, 'uColor2');
-    const uEnergy = gl.getUniformLocation(rProg, 'uEnergy');
+      const rProg = this.ribbonProgram;
+      const aPos = gl.getAttribLocation(rProg, 'aPosition');
+      const aCoord = gl.getAttribLocation(rProg, 'aRibbonCoord');
 
-    gl.uniform2f(uRes, this.canvas.width, this.canvas.height);
-    gl.uniform1f(uTime, this.time);
-    gl.uniform3fv(uCol1, this.currentColor1);
-    gl.uniform3fv(uCol2, this.currentColor2);
-    gl.uniform1f(uEnergy, this.energy);
+      const uRes = gl.getUniformLocation(rProg, 'uResolution');
+      const uTime = gl.getUniformLocation(rProg, 'uTime');
+      const uCol1 = gl.getUniformLocation(rProg, 'uColor1');
+      const uCol2 = gl.getUniformLocation(rProg, 'uColor2');
+      const uEnergy = gl.getUniformLocation(rProg, 'uEnergy');
 
-    gl.enableVertexAttribArray(aPos);
-    gl.enableVertexAttribArray(aCoord);
-    gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 20, 0);
-    gl.vertexAttribPointer(aCoord, 2, gl.FLOAT, false, 20, 12);
+      gl.uniform2f(uRes, this.canvas.width, this.canvas.height);
+      gl.uniform1f(uTime, this.time);
+      gl.uniform3fv(uCol1, this.currentColor1);
+      gl.uniform3fv(uCol2, this.currentColor2);
+      gl.uniform1f(uEnergy, this.energy);
 
-    // Draw each ribbon strand as a triangle strip
-    const vertsPerRibbon = this.ribbonSegments * 2;
-    for (let r = 0; r < this.numRibbons; r++) {
-      gl.drawArrays(gl.TRIANGLE_STRIP, r * vertsPerRibbon, vertsPerRibbon);
+      gl.enableVertexAttribArray(aPos);
+      gl.enableVertexAttribArray(aCoord);
+      gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 20, 0);
+      gl.vertexAttribPointer(aCoord, 2, gl.FLOAT, false, 20, 12);
+
+      const vertsPerRibbon = this.ribbonSegments * 2;
+      for (let r = 0; r < this.numRibbons; r++) {
+        gl.drawArrays(gl.TRIANGLE_STRIP, r * vertsPerRibbon, vertsPerRibbon);
+      }
+
+      gl.disableVertexAttribArray(aCoord);
+
+      // --- Draw Particles ---
+      gl.useProgram(this.particleProgram);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.particleBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, this.particleRenderData, gl.DYNAMIC_DRAW);
+
+      const pProg = this.particleProgram;
+      const apPos = gl.getAttribLocation(pProg, 'aPosition');
+      const apPhase = gl.getAttribLocation(pProg, 'aPhase');
+      const apSize = gl.getAttribLocation(pProg, 'aSize');
+
+      const upRes = gl.getUniformLocation(pProg, 'uResolution');
+      const upCol1 = gl.getUniformLocation(pProg, 'uColor1');
+      const upCol2 = gl.getUniformLocation(pProg, 'uColor2');
+      const upEnergy = gl.getUniformLocation(pProg, 'uEnergy');
+
+      gl.uniform2f(upRes, this.canvas.width, this.canvas.height);
+      gl.uniform3fv(upCol1, this.currentColor1);
+      gl.uniform3fv(upCol2, this.currentColor2);
+      gl.uniform1f(upEnergy, this.energy);
+
+      gl.enableVertexAttribArray(apPos);
+      gl.enableVertexAttribArray(apPhase);
+      gl.enableVertexAttribArray(apSize);
+      gl.vertexAttribPointer(apPos, 3, gl.FLOAT, false, 20, 0);
+      gl.vertexAttribPointer(apPhase, 1, gl.FLOAT, false, 20, 12);
+      gl.vertexAttribPointer(apSize, 1, gl.FLOAT, false, 20, 16);
+
+      gl.drawArrays(gl.POINTS, 0, this.numParticles);
+
+      gl.disableVertexAttribArray(apPhase);
+      gl.disableVertexAttribArray(apSize);
+    } 
+    // --- 2D Canvas Fallback ---
+    else if (this.ctx2d) {
+      const ctx = this.ctx2d;
+      const w = this.canvas.width;
+      const h = this.canvas.height;
+
+      ctx.fillStyle = '#0a0a1a';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+
+      const colStr = `rgb(${Math.floor(this.currentColor1[0]*255)}, ${Math.floor(this.currentColor1[1]*255)}, ${Math.floor(this.currentColor1[2]*255)})`;
+      ctx.fillStyle = colStr;
+
+      for (let p of this.particles2D) {
+        p.x += p.vx * (1.0 + this.energy * 2.0);
+        p.y += p.vy * (1.0 + this.energy * 2.0);
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h;
+        if (p.y > h) p.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * (1.0 + this.energy * 0.5), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
 
-    // --- Draw Particles ---
-    gl.useProgram(this.particleProgram);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.particleBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, this.particleRenderData, gl.DYNAMIC_DRAW);
-
-    const pProg = this.particleProgram;
-    const apPos = gl.getAttribLocation(pProg, 'aPosition');
-    const apPhase = gl.getAttribLocation(pProg, 'aPhase');
-    const apSize = gl.getAttribLocation(pProg, 'aSize');
-
-    const upRes = gl.getUniformLocation(pProg, 'uResolution');
-    const upCol1 = gl.getUniformLocation(pProg, 'uColor1');
-    const upCol2 = gl.getUniformLocation(pProg, 'uColor2');
-    const upEnergy = gl.getUniformLocation(pProg, 'uEnergy');
-
-    gl.uniform2f(upRes, this.canvas.width, this.canvas.height);
-    gl.uniform3fv(upCol1, this.currentColor1);
-    gl.uniform3fv(upCol2, this.currentColor2);
-    gl.uniform1f(upEnergy, this.energy);
-
-    gl.enableVertexAttribArray(apPos);
-    gl.enableVertexAttribArray(apPhase);
-    gl.enableVertexAttribArray(apSize);
-    gl.vertexAttribPointer(apPos, 3, gl.FLOAT, false, 20, 0);
-    gl.vertexAttribPointer(apPhase, 1, gl.FLOAT, false, 20, 12);
-    gl.vertexAttribPointer(apSize, 1, gl.FLOAT, false, 20, 16);
-
-    gl.drawArrays(gl.POINTS, 0, this.numParticles);
-
-    // Loop
     this.animationFrameId = requestAnimationFrame(this.render);
   }
 
