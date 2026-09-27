@@ -1,5 +1,5 @@
-import { initAudio, playNote, startNote, stopNote, playFail } from './audio.js?v=6';
-import { PlayerTransport } from './transport.js?v=6';
+import { initAudio, playNote, startNote, stopNote, playFail } from './audio.js?v=7';
+import { PlayerTransport } from './transport.js?v=7';
 
 // State
 let playerName = '';
@@ -46,13 +46,13 @@ function init() {
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room');
     if (roomParam) {
-        roomInput.value = roomParam.toUpperCase();
+        roomInput.value = roomParam.toLowerCase();
     }
 
     // Try loading saved name
     const savedName = localStorage.getItem('toot-player-name');
     if (savedName) {
-        nameInput.value = savedName;
+        nameInput.value = savedName.toLowerCase();
     }
 
     joinBtn.addEventListener('click', handleJoin);
@@ -85,17 +85,17 @@ function showError(msg) {
 }
 
 function handleJoin() {
-    playerName = nameInput.value.trim();
-    roomCode = roomInput.value.trim().toUpperCase();
+    playerName = nameInput.value.trim().toLowerCase();
+    roomCode = roomInput.value.trim().toLowerCase();
 
     if (!playerName || !roomCode) {
-        showError('Please enter both name and room code');
+        showError('please enter both name and room code');
         return;
     }
 
     localStorage.setItem('toot-player-name', playerName);
     errorMsg.classList.add('hidden');
-    joinBtn.textContent = 'Connecting...';
+    joinBtn.textContent = 'connecting...';
     joinBtn.disabled = true;
 
     // Initialize Audio Context on first interaction
@@ -118,14 +118,14 @@ function connectToHost() {
             console.log('Connected to host as', myId);
             waitingName.textContent = playerName;
             switchView('waiting');
-            joinBtn.textContent = 'Join';
+            joinBtn.textContent = 'join';
             joinBtn.disabled = false;
         },
         onError: (err) => {
             console.error('Connection error:', err);
-            showError('Unable to connect to game room. Please check connection and try again.');
+            showError('unable to connect to game room. please check connection and try again.');
             switchView('join');
-            joinBtn.textContent = 'Join';
+            joinBtn.textContent = 'join';
             joinBtn.disabled = false;
         }
     });
@@ -135,16 +135,16 @@ function updateModeUI() {
     if (subMode === 'practice') {
         if (playerModeBadge) {
             playerModeBadge.className = 'player-mode-badge badge-rehearsal';
-            playerModeBadge.textContent = 'Rehearsal';
+            playerModeBadge.textContent = 'rehearsal';
         }
         if (startingNoteBanner) {
             if (isConductor) {
                 startingNoteBanner.className = 'starting-banner is-conductor';
-                startingNoteBanner.textContent = '🌟 You play the first note!';
+                startingNoteBanner.textContent = '🌟 you play the first note!';
                 startingNoteBanner.classList.remove('hidden');
             } else {
                 startingNoteBanner.className = 'starting-banner';
-                startingNoteBanner.textContent = conductorName ? `Waiting for ${conductorName} to play note 1...` : 'Listen for the first note...';
+                startingNoteBanner.textContent = conductorName ? `waiting for ${conductorName.toLowerCase()} to play note 1...` : 'listen for the first note...';
                 startingNoteBanner.classList.remove('hidden');
             }
         }
@@ -158,7 +158,7 @@ function updateModeUI() {
     } else {
         if (playerModeBadge) {
             playerModeBadge.className = 'player-mode-badge badge-performance';
-            playerModeBadge.textContent = 'Showtime';
+            playerModeBadge.textContent = 'showtime';
         }
         if (startingNoteBanner) startingNoteBanner.classList.add('hidden');
         if (conductorControls) conductorControls.classList.add('hidden');
@@ -207,7 +207,7 @@ function handleMessage(msg) {
                     if (count > 0) {
                         if (playerCountdownText) playerCountdownText.textContent = count;
                     } else if (count === 0) {
-                        if (playerCountdownText) playerCountdownText.textContent = 'GO!';
+                        if (playerCountdownText) playerCountdownText.textContent = 'go!';
                     } else {
                         clearInterval(countInterval);
                         countdownOverlay.classList.add('hidden');
@@ -226,7 +226,7 @@ function handleMessage(msg) {
             if (msg.subMode) subMode = msg.subMode;
             if (subMode === 'practice' && msg.progress > 0 && !isConductor) {
                 if (startingNoteBanner) {
-                    startingNoteBanner.textContent = `Practicing ${currentSongName}...`;
+                    startingNoteBanner.textContent = `practicing ${currentSongName.toLowerCase()}...`;
                 }
             }
             break;
@@ -242,7 +242,7 @@ function handleMessage(msg) {
             break;
         case 'win':
             if (countdownOverlay) countdownOverlay.classList.add('hidden');
-            winMessage.textContent = `Completed in ${msg.time}s with ${msg.fails} fails!`;
+            winMessage.textContent = `completed in ${msg.time}s with ${msg.fails} fails!`;
             switchView('win');
             if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
             break;
@@ -276,7 +276,7 @@ function buildNoteButtons(notes) {
         // Determine display name
         const letter = note.replace(/[0-9]/g, '');
         const octave = parseInt(note.replace(/[^0-9]/g, ''), 10) || 4;
-        let displayName = letter;
+        let displayName = letter.toLowerCase();
         let isCompoundLabel = false;
         
         if (letterCounts[letter] > 1) {
@@ -288,13 +288,13 @@ function buildNoteButtons(notes) {
             const maxOct = playerOctaves[playerOctaves.length - 1];
 
             if (octave === minOct) {
-                displayName = `low ${letter}`;
+                displayName = `low ${letter.toLowerCase()}`;
                 isCompoundLabel = true;
             } else if (octave === maxOct) {
-                displayName = `high ${letter}`;
+                displayName = `high ${letter.toLowerCase()}`;
                 isCompoundLabel = true;
             } else {
-                displayName = letter;
+                displayName = letter.toLowerCase();
             }
         }
         

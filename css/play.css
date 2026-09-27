@@ -7,10 +7,11 @@ body {
     overflow: hidden;
     background-color: var(--bg-color, #1a1a2e);
     color: var(--text-color, #ffffff);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-primary);
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+    text-transform: lowercase;
 }
 
 .view {
@@ -28,6 +29,12 @@ body {
     display: flex;
 }
 
+h1, h2, h3 {
+    font-family: var(--font-display);
+    text-transform: lowercase;
+    font-weight: 400;
+}
+
 /* Join View */
 .input-group {
     width: 100%;
@@ -38,7 +45,8 @@ body {
 input {
     width: 100%;
     padding: 15px;
-    font-size: 1.2rem;
+    font-size: 1.6rem;
+    font-family: var(--font-primary);
     border: 2px solid #303050;
     border-radius: 12px;
     background: #232340;
@@ -46,6 +54,7 @@ input {
     text-align: center;
     box-sizing: border-box;
     transition: border-color 0.2s;
+    text-transform: lowercase;
 }
 
 input:focus {
@@ -57,8 +66,9 @@ input:focus {
     width: 100%;
     max-width: 300px;
     padding: 15px;
-    font-size: 1.3rem;
-    font-weight: bold;
+    font-size: 2rem;
+    font-family: var(--font-display);
+    font-weight: 400;
     color: white;
     background: linear-gradient(135deg, #6b8dff, #c46bff);
     border: none;
@@ -66,6 +76,7 @@ input:focus {
     cursor: pointer;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     transition: transform 0.1s, filter 0.1s;
+    text-transform: lowercase;
 }
 
 .primary-btn:active {
@@ -130,10 +141,11 @@ input:focus {
 }
 
 .player-mode-badge {
-    font-size: 0.8rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    padding: 3px 10px;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 400;
+    text-transform: lowercase;
+    padding: 3px 12px;
     border-radius: 12px;
     letter-spacing: 0.5px;
 }
@@ -151,9 +163,10 @@ input:focus {
 }
 
 .starting-banner {
-    font-size: 0.95rem;
-    font-weight: 700;
-    padding: 6px 14px;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 400;
+    padding: 6px 16px;
     border-radius: 20px;
     text-align: center;
     width: auto;
@@ -162,6 +175,7 @@ input:focus {
     color: #fde047;
     border: 1px solid #eab308;
     animation: pulseBanner 2s infinite alternate;
+    text-transform: lowercase;
 }
 
 .starting-banner.is-conductor {
@@ -189,8 +203,9 @@ input:focus {
     flex: 1 1 100%;
     border: none;
     border-radius: 20px;
-    font-size: 48px;
-    font-weight: bold;
+    font-family: var(--font-display);
+    font-size: 58px;
+    font-weight: 400;
     color: white;
     box-shadow: 0 8px 0 rgba(0,0,0,0.2), inset 0 4px 0 rgba(255,255,255,0.2);
     display: flex;
@@ -202,6 +217,7 @@ input:focus {
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
+    text-transform: lowercase;
 }
 
 .note-btn:active, .note-btn.active {
@@ -233,13 +249,14 @@ input:focus {
     right: 15px;
     background: #eab308;
     color: #0f172a;
-    font-size: 0.85rem;
-    font-weight: 900;
-    padding: 3px 10px;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 400;
+    padding: 3px 12px;
     border-radius: 20px;
     letter-spacing: 0.5px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    text-transform: uppercase;
+    text-transform: lowercase;
 }
 
 /* Conductor Controls */
@@ -255,8 +272,9 @@ input:focus {
     width: 100%;
     max-width: 400px;
     padding: 14px 24px;
-    font-size: 1.25rem;
-    font-weight: 800;
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 400;
     color: white;
     background: linear-gradient(135deg, #f59e0b, #ef4444);
     border: none;
@@ -265,6 +283,7 @@ input:focus {
     box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
     transition: transform 0.1s, filter 0.1s;
     text-align: center;
+    text-transform: lowercase;
 }
 
 .btn-conductor-start:active {
@@ -289,17 +308,19 @@ input:focus {
 }
 
 .player-countdown-title {
-    font-size: 1.8rem;
-    font-weight: 800;
-    letter-spacing: 4px;
+    font-family: var(--font-display);
+    font-size: 2.8rem;
+    font-weight: 400;
+    letter-spacing: 2px;
     color: #38bdf8;
     margin-bottom: 10px;
-    text-transform: uppercase;
+    text-transform: lowercase;
 }
 
 #player-countdown-text {
-    font-size: 8rem;
-    font-weight: 900;
+    font-family: var(--font-display);
+    font-size: 10rem;
+    font-weight: 400;
     color: #ffffff;
     text-shadow: 0 0 40px rgba(255, 255, 255, 0.6);
     animation: pulse 1s infinite;
@@ -356,6 +377,8 @@ input:focus {
 }
 
 #win-message {
-    font-size: 1.5rem;
+    font-family: var(--font-display);
+    font-size: 2.2rem;
     margin: 20px 0;
+    text-transform: lowercase;
 }

@@ -133,11 +133,11 @@ export function getRandomSong(maxDifficulty = 5) {
 }
 
 export const DIFFICULTY_LEVELS = [
-  { level: 1, name: 'Warmup', emoji: '⭐', description: 'Simple 3–5 note melodies' },
-  { level: 2, name: 'Casual', emoji: '⭐⭐', description: 'Familiar 7-note melodies' },
-  { level: 3, name: 'Melodic', emoji: '⭐⭐⭐', description: 'Tricker steps & jumps' },
-  { level: 4, name: 'Harmonic', emoji: '⭐⭐⭐⭐', description: 'Wider ranges & intervals' },
-  { level: 5, name: 'Maestro', emoji: '⭐⭐⭐⭐⭐', description: 'Complex minor melody' }
+  { level: 1, name: 'easy', emoji: '⭐', description: 'simple 3–5 note melodies' },
+  { level: 2, name: 'challenging', emoji: '⭐⭐', description: 'familiar 7-note melodies' },
+  { level: 3, name: 'difficult', emoji: '⭐⭐⭐', description: 'trickier steps & jumps' },
+  { level: 4, name: 'frustrating', emoji: '⭐⭐⭐⭐', description: 'wider ranges & intervals' },
+  { level: 5, name: 'preposterous', emoji: '⭐⭐⭐⭐⭐', description: 'rapid changes & master challenge' }
 ];
 
 /**

@@ -1,7 +1,7 @@
-import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=6';
-import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=6';
-import { generateRoomCode } from './room-code.js?v=6';
-import { HostTransport } from './transport.js?v=6';
+import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=7';
+import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=7';
+import { generateRoomCode } from './room-code.js?v=7';
+import { HostTransport } from './transport.js?v=7';
 
 // DOM Elements
 const views = {
@@ -61,18 +61,18 @@ function init() {
     roomCode = generateRoomCode();
     
     // UI updates
-    elRoomCode.textContent = roomCode;
+    elRoomCode.textContent = roomCode.toLowerCase();
     
     // Correct URL resolving relative to current page location (works on GitHub Pages and localhost)
     const playUrl = new URL('play.html', window.location.href).href;
-    elJoinUrl.textContent = playUrl;
+    if (elJoinUrl) elJoinUrl.textContent = playUrl;
     
     // Generate QR Code
-    if (typeof qrcode !== 'undefined') {
+    if (typeof qrcode !== 'undefined' && elQrCodeContainer) {
         const qr = qrcode(0, 'M');
         qr.addData(`${playUrl}?room=${roomCode}`);
         qr.make();
-        elQrCodeContainer.innerHTML = qr.createImgTag(5, 10);
+        elQrCodeContainer.innerHTML = qr.createImgTag(4, 8);
     }
 
     renderDifficultySelector();
@@ -106,7 +106,7 @@ function renderDifficultySelector() {
     if (!elDifficultyChips) return;
     elDifficultyChips.innerHTML = DIFFICULTY_LEVELS.map(d => `
         <button class="difficulty-chip ${d.level === selectedDifficulty ? 'active' : ''}" data-level="${d.level}">
-            ${d.emoji} ${d.name}
+            ${d.name}
         </button>
     `).join('');
 
@@ -125,9 +125,9 @@ function renderDifficultySelector() {
 function updateDifficultyPreview() {
     if (!elDifficultyPreview) return;
     const levelSongs = getSongsByDifficulty(selectedDifficulty);
-    const songNames = levelSongs.map(s => s.name).join(', ');
+    const songNames = levelSongs.map(s => s.name.toLowerCase()).join(', ');
     const diffInfo = DIFFICULTY_LEVELS.find(d => d.level === selectedDifficulty);
-    elDifficultyPreview.textContent = `${diffInfo.description} • Songs: ${songNames}`;
+    elDifficultyPreview.textContent = `${diffInfo.description} • songs: ${songNames}`;
 }
 
 function switchView(viewName) {
@@ -170,13 +170,13 @@ function handlePlayerMessage(playerId, data) {
 }
 
 function updatePlayerList() {
-    elPlayerCount.textContent = players.length;
+    if (elPlayerCount) elPlayerCount.textContent = players.length;
     
     if (players.length === 0) {
-        elPlayerList.innerHTML = '<div class="waiting-text">Waiting for players...</div>';
+        elPlayerList.innerHTML = '<div class="waiting-text">waiting for players...</div>';
     } else {
         elPlayerList.innerHTML = players.map(p => 
-            `<div class="player-card">${p.name}</div>`
+            `<div class="player-item">${p.name.toLowerCase()}</div>`
         ).join('');
     }
     
@@ -249,19 +249,19 @@ function startTimer() {
 function setRehearsalUI() {
     if (elModeBadge) {
         elModeBadge.className = 'mode-badge badge-rehearsal';
-        elModeBadge.textContent = '🎶 REHEARSAL (Safe Practice)';
+        elModeBadge.textContent = '🎶 rehearsal (safe practice)';
     }
     if (elConductorDisplay) {
         elConductorDisplay.style.display = 'block';
     }
     if (elConductorName) {
-        elConductorName.textContent = conductorName;
+        elConductorName.textContent = conductorName.toLowerCase();
     }
     if (elStatFails) elStatFails.classList.add('hidden');
     if (elStatTimer) elStatTimer.classList.add('hidden');
     if (elRehearsalPrompt) {
         elRehearsalPrompt.classList.remove('hidden');
-        elRehearsalPrompt.textContent = 'Practice safely with no penalty! When ready, Conductor can take the stage.';
+        elRehearsalPrompt.textContent = 'practice safely with no penalty! when ready, conductor can take the stage.';
     }
     if (btnHostStartPerformance) btnHostStartPerformance.classList.remove('hidden');
 }
@@ -269,7 +269,7 @@ function setRehearsalUI() {
 function setPerformanceUI() {
     if (elModeBadge) {
         elModeBadge.className = 'mode-badge badge-performance';
-        elModeBadge.textContent = '🔥 SHOWTIME (Performance)';
+        elModeBadge.textContent = '🔥 showtime (performance)';
     }
     if (elConductorDisplay) {
         elConductorDisplay.style.display = 'none';
@@ -305,7 +305,7 @@ function startPerformanceCountdown() {
     failCount = 0;
     updateProgressUI();
     
-    if (elCountdownTitle) elCountdownTitle.textContent = 'SHOWTIME IN';
+    if (elCountdownTitle) elCountdownTitle.textContent = 'showtime in';
     switchView('countdown');
     
     let count = 3;
@@ -316,7 +316,7 @@ function startPerformanceCountdown() {
         if (count > 0) {
             elCountdownNumber.textContent = count;
         } else if (count === 0) {
-            elCountdownNumber.textContent = 'GO!';
+            elCountdownNumber.textContent = 'go!';
         } else {
             clearInterval(countInterval);
             subMode = 'performance';
@@ -526,7 +526,7 @@ function renderWinProgressionActions() {
     if (nextSongSameDiff && nextSongSameDiff.id !== currentSong.id) {
         const btnSame = document.createElement('button');
         btnSame.className = 'btn-primary';
-        btnSame.textContent = `Play Next: ${nextSongSameDiff.name}`;
+        btnSame.textContent = `play next: ${nextSongSameDiff.name.toLowerCase()}`;
         btnSame.addEventListener('click', () => {
             startGame(nextSongSameDiff);
         });
@@ -535,7 +535,7 @@ function renderWinProgressionActions() {
         // Replay option if all songs at this difficulty were played
         const btnReplay = document.createElement('button');
         btnReplay.className = 'btn-primary';
-        btnReplay.textContent = `Replay ${currentSong.name}`;
+        btnReplay.textContent = `replay ${currentSong.name.toLowerCase()}`;
         btnReplay.addEventListener('click', () => {
             startGame(currentSong);
         });
@@ -548,7 +548,7 @@ function renderWinProgressionActions() {
         const nextDiff = DIFFICULTY_LEVELS.find(d => d.level === nextLevel);
         const btnLevelUp = document.createElement('button');
         btnLevelUp.className = 'btn-primary btn-level-up';
-        btnLevelUp.textContent = `Level Up: ${nextDiff.emoji} ${nextDiff.name} 🚀`;
+        btnLevelUp.textContent = `level up: ${nextDiff.name} 🚀`;
         btnLevelUp.addEventListener('click', () => {
             selectedDifficulty = nextLevel;
             renderDifficultySelector();
@@ -560,7 +560,7 @@ function renderWinProgressionActions() {
     // Return to Lobby button
     const btnLobby = document.createElement('button');
     btnLobby.className = 'btn-secondary-action';
-    btnLobby.textContent = 'Change Difficulty / Lobby';
+    btnLobby.textContent = 'change difficulty / lobby';
     btnLobby.addEventListener('click', resetToLobby);
     elWinActions.appendChild(btnLobby);
 }

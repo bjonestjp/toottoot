@@ -8,7 +8,7 @@
   <!-- Google Fonts for Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Special+Gothic+Condensed+One&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="css/common.css">
   
@@ -37,32 +37,33 @@
     }
 
     .game-title {
-      font-size: 6rem;
-      font-weight: 400; /* Fredoka One is already thick */
+      font-size: 6.5rem;
+      font-weight: 400;
       margin: 0;
-      background: linear-gradient(to right, var(--note-c), var(--note-e), var(--note-g), var(--note-c5));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      text-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      color: #ffffff;
+      text-shadow: 0 10px 20px rgba(0,0,0,0.3);
       line-height: 1.1;
       letter-spacing: 2px;
+      text-transform: lowercase;
     }
 
     .game-subtitle {
-      font-size: 1.5rem;
+      font-size: 1.8rem;
       color: var(--text-primary);
       margin-bottom: 2rem;
-      font-weight: 600;
+      font-weight: 400;
       letter-spacing: 1px;
+      text-transform: lowercase;
     }
 
     .description {
       max-width: 500px;
-      font-size: 1.1rem;
+      font-size: 1.3rem;
       color: var(--text-primary);
-      opacity: 0.9;
+      opacity: 0.85;
       margin-bottom: 3rem;
-      line-height: 1.6;
+      line-height: 1.5;
+      text-transform: lowercase;
     }
 
     .action-buttons {
@@ -93,9 +94,9 @@
     }
 
     @media (max-width: 768px) {
-      .game-title { font-size: 4rem; }
-      .game-subtitle { font-size: 1.2rem; }
-      .description { font-size: 1rem; }
+      .game-title { font-size: 4.5rem; }
+      .game-subtitle { font-size: 1.4rem; }
+      .description { font-size: 1.1rem; }
       .action-buttons { flex-direction: column; width: 100%; max-width: 300px; }
       .btn { width: 100%; }
     }
@@ -111,17 +112,17 @@
 
   <main class="landing-container">
     <div class="title-wrapper">
-      <h1 class="game-title">TOOT</h1>
-      <h2 class="game-subtitle">A Cooperative Music Game</h2>
+      <h1 class="game-title">toot</h1>
+      <h2 class="game-subtitle">a cooperative music game</h2>
     </div>
 
     <p class="description">
-      Gather your friends and play together! Everyone gets a few notes on their device, and you must work together to play the melody perfectly.
+      gather your friends and play together! everyone gets a few notes on their device, and you must work together to play the melody perfectly.
     </p>
 
     <div class="action-buttons">
-      <a href="host.html" class="btn btn-primary btn-large">Host a Game</a>
-      <a href="play.html" class="btn btn-secondary btn-large">Join a Game</a>
+      <a href="host.html" class="btn btn-primary btn-large">host a game</a>
+      <a href="play.html" class="btn btn-secondary btn-large">join a game</a>
     </div>
   </main>
 
