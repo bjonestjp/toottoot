@@ -1,5 +1,5 @@
-import { initAudio, playNote, startNote, stopNote, playFail } from './audio.js?v=5';
-import { PlayerTransport } from './transport.js?v=5';
+import { initAudio, playNote, startNote, stopNote, playFail } from './audio.js?v=6';
+import { PlayerTransport } from './transport.js?v=6';
 
 // State
 let playerName = '';
@@ -8,6 +8,12 @@ let transport = null;
 let assignedNotes = [];
 let gameState = 'join'; // join | waiting | playing | win
 let audioInitialized = false;
+let isConductor = false;
+let startingNote = null;
+let conductorName = '';
+let currentSongName = '';
+let currentSongEmoji = '🎵';
+let subMode = 'practice'; // practice | performance
 
 // DOM Elements
 const views = {
@@ -25,6 +31,14 @@ const waitingName = document.getElementById('waiting-name');
 const noteContainer = document.getElementById('note-buttons-container');
 const failOverlay = document.getElementById('fail-overlay');
 const winMessage = document.getElementById('win-message');
+const playerSongTitle = document.getElementById('player-song-title');
+const playerSongEmoji = document.getElementById('player-song-emoji');
+const playerModeBadge = document.getElementById('player-mode-badge');
+const startingNoteBanner = document.getElementById('starting-note-banner');
+const conductorControls = document.getElementById('conductor-controls');
+const btnStartPerformance = document.getElementById('btn-start-performance');
+const countdownOverlay = document.getElementById('countdown-overlay');
+const playerCountdownText = document.getElementById('player-countdown-text');
 
 // Initialize
 function init() {
@@ -42,6 +56,14 @@ function init() {
     }
 
     joinBtn.addEventListener('click', handleJoin);
+    
+    if (btnStartPerformance) {
+        btnStartPerformance.addEventListener('click', () => {
+            if (transport) {
+                transport.sendToHost({ type: 'start-performance' });
+            }
+        });
+    }
     
     // Prevent zooming and scrolling
     document.addEventListener('touchmove', (e) => {
@@ -109,6 +131,50 @@ function connectToHost() {
     });
 }
 
+function updateModeUI() {
+    if (subMode === 'practice') {
+        if (playerModeBadge) {
+            playerModeBadge.className = 'player-mode-badge badge-rehearsal';
+            playerModeBadge.textContent = 'Rehearsal';
+        }
+        if (startingNoteBanner) {
+            if (isConductor) {
+                startingNoteBanner.className = 'starting-banner is-conductor';
+                startingNoteBanner.textContent = '🌟 You play the first note!';
+                startingNoteBanner.classList.remove('hidden');
+            } else {
+                startingNoteBanner.className = 'starting-banner';
+                startingNoteBanner.textContent = conductorName ? `Waiting for ${conductorName} to play note 1...` : 'Listen for the first note...';
+                startingNoteBanner.classList.remove('hidden');
+            }
+        }
+        if (conductorControls) {
+            if (isConductor) {
+                conductorControls.classList.remove('hidden');
+            } else {
+                conductorControls.classList.add('hidden');
+            }
+        }
+    } else {
+        if (playerModeBadge) {
+            playerModeBadge.className = 'player-mode-badge badge-performance';
+            playerModeBadge.textContent = 'Showtime';
+        }
+        if (startingNoteBanner) startingNoteBanner.classList.add('hidden');
+        if (conductorControls) conductorControls.classList.add('hidden');
+        removeStartingNoteHighlights();
+    }
+}
+
+function removeStartingNoteHighlights() {
+    if (!noteContainer) return;
+    noteContainer.querySelectorAll('.note-btn').forEach(btn => {
+        btn.classList.remove('starting-note');
+        const badge = btn.querySelector('.first-badge');
+        if (badge) badge.remove();
+    });
+}
+
 function handleMessage(msg) {
     console.log('Received:', msg);
     switch (msg.type) {
@@ -116,23 +182,66 @@ function handleMessage(msg) {
             // Logged in successfully
             break;
         case 'assign-notes':
-            assignedNotes = msg.notes;
+            assignedNotes = msg.notes || [];
+            isConductor = !!msg.isConductor;
+            startingNote = msg.startingNote || null;
+            conductorName = msg.conductorName || '';
+            currentSongName = msg.songName || '';
+            currentSongEmoji = msg.songEmoji || '🎵';
+            subMode = msg.subMode || 'practice';
+
+            if (playerSongTitle) playerSongTitle.textContent = currentSongName;
+            if (playerSongEmoji) playerSongEmoji.textContent = currentSongEmoji;
+            updateModeUI();
+
             buildNoteButtons(assignedNotes);
             switchView('playing');
             break;
+        case 'performance-countdown':
+            if (countdownOverlay) {
+                countdownOverlay.classList.remove('hidden');
+                let count = 3;
+                if (playerCountdownText) playerCountdownText.textContent = count;
+                const countInterval = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        if (playerCountdownText) playerCountdownText.textContent = count;
+                    } else if (count === 0) {
+                        if (playerCountdownText) playerCountdownText.textContent = 'GO!';
+                    } else {
+                        clearInterval(countInterval);
+                        countdownOverlay.classList.add('hidden');
+                        subMode = 'performance';
+                        updateModeUI();
+                    }
+                }, 1000);
+            }
+            break;
+        case 'performance-started':
+            if (countdownOverlay) countdownOverlay.classList.add('hidden');
+            subMode = 'performance';
+            updateModeUI();
+            break;
         case 'note-correct':
-            // Optional: subtle pulse effect
+            if (msg.subMode) subMode = msg.subMode;
+            if (subMode === 'practice' && msg.progress > 0 && !isConductor) {
+                if (startingNoteBanner) {
+                    startingNoteBanner.textContent = `Practicing ${currentSongName}...`;
+                }
+            }
             break;
         case 'note-wrong':
             triggerFail();
             break;
         case 'restart':
             failOverlay.classList.remove('show');
+            if (countdownOverlay) countdownOverlay.classList.add('hidden');
             if (gameState === 'win' || gameState === 'fail') {
                  switchView('playing');
             }
             break;
         case 'win':
+            if (countdownOverlay) countdownOverlay.classList.add('hidden');
             winMessage.textContent = `Completed in ${msg.time}s with ${msg.fails} fails!`;
             switchView('win');
             if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
@@ -167,6 +276,8 @@ function buildNoteButtons(notes) {
         // Determine display name
         const letter = note.replace(/[0-9]/g, '');
         const octave = parseInt(note.replace(/[^0-9]/g, ''), 10) || 4;
+        let displayName = letter;
+        let isCompoundLabel = false;
         
         if (letterCounts[letter] > 1) {
             const playerOctaves = notes
@@ -177,15 +288,29 @@ function buildNoteButtons(notes) {
             const maxOct = playerOctaves[playerOctaves.length - 1];
 
             if (octave === minOct) {
-                btn.textContent = `low ${letter}`;
+                displayName = `low ${letter}`;
+                isCompoundLabel = true;
             } else if (octave === maxOct) {
-                btn.textContent = `high ${letter}`;
+                displayName = `high ${letter}`;
+                isCompoundLabel = true;
             } else {
-                btn.textContent = letter;
+                displayName = letter;
             }
-            btn.style.fontSize = '32px';
-        } else {
-            btn.textContent = letter;
+        }
+        
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'note-label';
+        labelSpan.textContent = displayName;
+        if (isCompoundLabel) labelSpan.style.fontSize = '32px';
+        btn.appendChild(labelSpan);
+
+        // Highlight starting note if conductor in practice mode
+        if (isConductor && note === startingNote && subMode === 'practice') {
+            btn.classList.add('starting-note');
+            const badge = document.createElement('span');
+            badge.className = 'first-badge';
+            badge.textContent = '1st';
+            btn.appendChild(badge);
         }
         
         // CSS variable based color mapping

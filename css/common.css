@@ -172,6 +172,7 @@ a:hover {
 .gap-2 { gap: 1rem; }
 .gap-3 { gap: 1.5rem; }
 .gap-4 { gap: 2rem; }
+.hidden { display: none !important; }
 
 /* Responsive */
 @media (max-width: 768px) {

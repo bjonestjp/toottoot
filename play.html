@@ -30,7 +30,25 @@
     </div>
 
     <div id="playing-view" class="view">
+        <div class="player-top-bar">
+            <div class="player-song-info">
+                <span id="player-song-emoji">🎵</span>
+                <span id="player-song-title">Song</span>
+                <span id="player-mode-badge" class="player-mode-badge badge-rehearsal">Rehearsal</span>
+            </div>
+            <div id="starting-note-banner" class="starting-banner">🌟 You play the first note!</div>
+        </div>
+
         <div id="note-buttons-container"></div>
+
+        <div id="conductor-controls" class="conductor-controls hidden">
+            <button id="btn-start-performance" class="btn-conductor-start">🎼 Start Performance</button>
+        </div>
+    </div>
+
+    <div id="countdown-overlay" class="countdown-overlay hidden">
+        <div class="player-countdown-title">SHOWTIME IN</div>
+        <div id="player-countdown-text">3</div>
     </div>
 
     <div id="fail-overlay" class="overlay hidden"></div>
@@ -43,6 +61,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/play.js?v=5"></script>
+    <script type="module" src="js/play.js?v=6"></script>
 </body>
 </html>

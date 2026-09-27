@@ -1,7 +1,7 @@
-import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=5';
-import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=5';
-import { generateRoomCode } from './room-code.js?v=5';
-import { HostTransport } from './transport.js?v=5';
+import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=6';
+import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=6';
+import { generateRoomCode } from './room-code.js?v=6';
+import { HostTransport } from './transport.js?v=6';
 
 // DOM Elements
 const views = {
@@ -20,21 +20,33 @@ const elPlayerCount = document.getElementById('player-count');
 const elDifficultyChips = document.getElementById('difficulty-chips');
 const elDifficultyPreview = document.getElementById('difficulty-preview');
 const btnStartGame = document.getElementById('btn-start-game');
+const elCountdownTitle = document.getElementById('countdown-title');
 const elCountdownNumber = document.getElementById('countdown-number');
+const elModeBadge = document.getElementById('mode-badge');
+const elConductorDisplay = document.getElementById('conductor-display');
+const elConductorName = document.getElementById('conductor-name');
 const elSongTitle = document.getElementById('song-title');
 const elSongEmoji = document.getElementById('song-emoji');
 const elProgressDots = document.getElementById('progress-dots');
+const elStatFails = document.getElementById('stat-fails');
 const elFailCountDisplay = document.getElementById('fail-count-display');
+const elStatTimer = document.getElementById('stat-timer');
 const elTimerDisplay = document.getElementById('timer-display');
+const elRehearsalPrompt = document.getElementById('rehearsal-prompt');
+const btnHostStartPerformance = document.getElementById('btn-host-start-performance');
 const elWinTime = document.getElementById('win-time');
 const elWinFails = document.getElementById('win-fails');
 const elWinActions = document.getElementById('win-actions');
 
 // State
 let gameState = 'lobby'; // lobby | countdown | playing | fail | win
+let subMode = 'practice'; // 'practice' | 'performance'
 let roomCode = '';
 let transport = null;
 let players = []; // { id, name, assignedNotes }
+let conductorId = null;
+let startingNote = null;
+let conductorName = '';
 let selectedDifficulty = 1; // 1 to 5
 let playedSongIds = new Set();
 let currentSong = null;
@@ -78,6 +90,11 @@ function init() {
     });
 
     btnStartGame.addEventListener('click', () => startGame());
+    if (btnHostStartPerformance) {
+        btnHostStartPerformance.addEventListener('click', () => {
+            startPerformanceCountdown();
+        });
+    }
     
     // Pre-init audio context on user interaction
     document.body.addEventListener('click', () => {
@@ -145,6 +162,10 @@ function handlePlayerMessage(playerId, data) {
         handleNoteDown(playerId, data.note);
     } else if (data.type === 'note-up') {
         handleNoteUp(playerId, data.note);
+    } else if (data.type === 'start-performance') {
+        if (subMode === 'practice' && gameState === 'playing') {
+            startPerformanceCountdown();
+        }
     }
 }
 
@@ -225,43 +246,68 @@ function startTimer() {
     }, 1000);
 }
 
-function startGame(optionalSong = null) {
-    // Need audio context initialized
-    initAudio();
+function setRehearsalUI() {
+    if (elModeBadge) {
+        elModeBadge.className = 'mode-badge badge-rehearsal';
+        elModeBadge.textContent = '🎶 REHEARSAL (Safe Practice)';
+    }
+    if (elConductorDisplay) {
+        elConductorDisplay.style.display = 'block';
+    }
+    if (elConductorName) {
+        elConductorName.textContent = conductorName;
+    }
+    if (elStatFails) elStatFails.classList.add('hidden');
+    if (elStatTimer) elStatTimer.classList.add('hidden');
+    if (elRehearsalPrompt) {
+        elRehearsalPrompt.classList.remove('hidden');
+        elRehearsalPrompt.textContent = 'Practice safely with no penalty! When ready, Conductor can take the stage.';
+    }
+    if (btnHostStartPerformance) btnHostStartPerformance.classList.remove('hidden');
+}
+
+function setPerformanceUI() {
+    if (elModeBadge) {
+        elModeBadge.className = 'mode-badge badge-performance';
+        elModeBadge.textContent = '🔥 SHOWTIME (Performance)';
+    }
+    if (elConductorDisplay) {
+        elConductorDisplay.style.display = 'none';
+    }
+    if (elStatFails) elStatFails.classList.remove('hidden');
+    if (elStatTimer) elStatTimer.classList.remove('hidden');
+    if (elRehearsalPrompt) elRehearsalPrompt.classList.add('hidden');
+    if (btnHostStartPerformance) btnHostStartPerformance.classList.add('hidden');
+}
+
+function triggerCorrectPulse() {
+    const bg = document.querySelector('.bg-animation');
+    if (bg) {
+        bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.4) 0%, rgba(15, 23, 42, 1) 100%)';
+        setTimeout(() => {
+            bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%)';
+        }, 300);
+    }
+}
+
+function startPerformanceCountdown() {
+    if (subMode !== 'practice') return;
     
-    // Pick specific song or next song for selected difficulty
-    currentSong = optionalSong || getNextSongAtDifficulty(selectedDifficulty, playedSongIds) || getRandomSong(selectedDifficulty);
-    playedSongIds.add(currentSong.id);
-    
-    progress = 0;
-    failCount = 0;
     if (activeHostNoteHandle) {
         stopNote(activeHostNoteHandle);
         activeHostNoteHandle = null;
     }
     
-    const uniqueNotes = getUniqueNotes(currentSong);
-    const assignments = distributeNotes(uniqueNotes, players);
+    // Broadcast countdown to players so they can prepare
+    broadcast({ type: 'performance-countdown' });
     
-    // Assign to state and send
-    players.forEach(p => {
-        p.assignedNotes = assignments[p.id] || [];
-        transport.sendToPlayer(p.id, {
-            type: 'assign-notes',
-            notes: p.assignedNotes,
-            songName: currentSong.name,
-            songEmoji: currentSong.emoji || '🎵',
-            difficulty: currentSong.difficulty || selectedDifficulty
-        });
-    });
-    
-    elSongTitle.textContent = currentSong.name;
-    elSongEmoji.textContent = currentSong.emoji || '🎵';
-    renderProgressDots();
+    progress = 0;
+    failCount = 0;
     updateProgressUI();
     
-    // Countdown
+    if (elCountdownTitle) elCountdownTitle.textContent = 'SHOWTIME IN';
     switchView('countdown');
+    
     let count = 3;
     elCountdownNumber.textContent = count;
     
@@ -273,10 +319,70 @@ function startGame(optionalSong = null) {
             elCountdownNumber.textContent = 'GO!';
         } else {
             clearInterval(countInterval);
+            subMode = 'performance';
+            setPerformanceUI();
             switchView('playing');
             startTimer();
+            broadcast({ type: 'performance-started' });
         }
     }, 1000);
+}
+
+function startGame(optionalSong = null) {
+    // Need audio context initialized
+    initAudio();
+    
+    // Pick specific song or next song for selected difficulty
+    currentSong = optionalSong || getNextSongAtDifficulty(selectedDifficulty, playedSongIds) || getRandomSong(selectedDifficulty);
+    playedSongIds.add(currentSong.id);
+    
+    progress = 0;
+    failCount = 0;
+    subMode = 'practice';
+    if (activeHostNoteHandle) {
+        stopNote(activeHostNoteHandle);
+        activeHostNoteHandle = null;
+    }
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    
+    const uniqueNotes = getUniqueNotes(currentSong);
+    const assignments = distributeNotes(uniqueNotes, players);
+    
+    // Identify Conductor & First Note
+    const firstNote = currentSong.notes[0];
+    startingNote = firstNote;
+    const conductor = players.find(p => assignments[p.id] && assignments[p.id].includes(firstNote)) || players[0];
+    conductorId = conductor ? conductor.id : (players[0] ? players[0].id : null);
+    conductorName = conductor ? conductor.name : 'Conductor';
+    
+    // Assign to state and send
+    players.forEach(p => {
+        p.assignedNotes = assignments[p.id] || [];
+        const isConductor = (p.id === conductorId);
+        transport.sendToPlayer(p.id, {
+            type: 'assign-notes',
+            notes: p.assignedNotes,
+            songName: currentSong.name,
+            songEmoji: currentSong.emoji || '🎵',
+            difficulty: currentSong.difficulty || selectedDifficulty,
+            isConductor: isConductor,
+            startingNote: isConductor ? firstNote : null,
+            conductorName: conductorName,
+            subMode: 'practice'
+        });
+    });
+    
+    elSongTitle.textContent = currentSong.name;
+    elSongEmoji.textContent = currentSong.emoji || '🎵';
+    renderProgressDots();
+    updateProgressUI();
+    setRehearsalUI();
+    
+    // Enter Rehearsal Mode immediately
+    switchView('playing');
 }
 
 function handleNoteDown(playerId, note) {
@@ -286,41 +392,77 @@ function handleNoteDown(playerId, note) {
     
     // Is it repeat of previous?
     if (progress > 0 && note === currentSong.notes[progress - 1] && note !== expectedNote) {
-        // Just play sound, no penalty
         if (activeHostNoteHandle) stopNote(activeHostNoteHandle);
         activeHostNoteHandle = startNote(note);
         return;
     }
     
-    if (note === expectedNote) {
-        // Correct note
-        if (activeHostNoteHandle) stopNote(activeHostNoteHandle);
-        activeHostNoteHandle = startNote(note);
-        progress++;
-        
-        updateProgressUI();
-        broadcast({
-            type: 'note-correct',
-            progress: progress,
-            total: currentSong.notes.length,
-            note: note
-        });
-        
-        // Background pulse
-        const bg = document.querySelector('.bg-animation');
-        if (bg) {
-            bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.4) 0%, rgba(15, 23, 42, 1) 100%)';
-            setTimeout(() => {
-                bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%)';
-            }, 300);
-        }
-        
-        if (progress === currentSong.notes.length) {
-            handleWin();
+    if (subMode === 'practice') {
+        // --- PRACTICE MODE ---
+        if (note === expectedNote) {
+            if (activeHostNoteHandle) stopNote(activeHostNoteHandle);
+            activeHostNoteHandle = startNote(note);
+            progress++;
+            
+            updateProgressUI();
+            broadcast({
+                type: 'note-correct',
+                progress: progress,
+                total: currentSong.notes.length,
+                note: note,
+                subMode: 'practice'
+            });
+            
+            triggerCorrectPulse();
+            
+            if (progress === currentSong.notes.length) {
+                if (elRehearsalPrompt) {
+                    elRehearsalPrompt.textContent = '🎉 Rehearsal complete! Ready for Showtime?';
+                }
+            }
+        } else {
+            // Wrong note in Practice: zero penalty audio feedback
+            if (activeHostNoteHandle) stopNote(activeHostNoteHandle);
+            activeHostNoteHandle = startNote(note);
+            
+            // Loop practice if whole song was played and first note is tapped again
+            if (progress === currentSong.notes.length && note === currentSong.notes[0]) {
+                progress = 1;
+                updateProgressUI();
+                broadcast({
+                    type: 'note-correct',
+                    progress: progress,
+                    total: currentSong.notes.length,
+                    note: note,
+                    subMode: 'practice'
+                });
+                triggerCorrectPulse();
+            }
         }
     } else {
-        // Wrong note
-        handleFail();
+        // --- PERFORMANCE MODE ---
+        if (note === expectedNote) {
+            if (activeHostNoteHandle) stopNote(activeHostNoteHandle);
+            activeHostNoteHandle = startNote(note);
+            progress++;
+            
+            updateProgressUI();
+            broadcast({
+                type: 'note-correct',
+                progress: progress,
+                total: currentSong.notes.length,
+                note: note,
+                subMode: 'performance'
+            });
+            
+            triggerCorrectPulse();
+            
+            if (progress === currentSong.notes.length) {
+                handleWin();
+            }
+        } else {
+            handleFail();
+        }
     }
 }
 
@@ -347,6 +489,7 @@ function handleFail() {
     setTimeout(() => {
         broadcast({ type: 'restart' });
         updateProgressUI();
+        setPerformanceUI();
         switchView('playing');
     }, 2000);
 }
@@ -427,6 +570,13 @@ function resetToLobby() {
         stopNote(activeHostNoteHandle);
         activeHostNoteHandle = null;
     }
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    subMode = 'practice';
+    progress = 0;
+    failCount = 0;
     renderDifficultySelector();
     switchView('lobby');
     broadcast({ type: 'restart' });
