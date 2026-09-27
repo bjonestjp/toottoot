@@ -252,6 +252,21 @@ function handleMessage(msg) {
     }
 }
 
+const KAZOO_HUE_FILTERS = {
+    'c': 'hue-rotate(330deg) saturate(1.1)',
+    'c#': 'hue-rotate(345deg)',
+    'd': 'hue-rotate(0deg)',
+    'd#': 'hue-rotate(20deg) saturate(1.2)',
+    'e': 'hue-rotate(38deg) saturate(1.2)',
+    'f': 'hue-rotate(95deg) saturate(1.1)',
+    'f#': 'hue-rotate(130deg)',
+    'g': 'hue-rotate(160deg)',
+    'g#': 'hue-rotate(185deg)',
+    'a': 'hue-rotate(210deg) saturate(1.1)',
+    'a#': 'hue-rotate(235deg)',
+    'b': 'hue-rotate(260deg)'
+};
+
 function buildNoteButtons(notes) {
     noteContainer.innerHTML = '';
     
@@ -271,13 +286,13 @@ function buildNoteButtons(notes) {
 
     notes.forEach(note => {
         const btn = document.createElement('button');
-        btn.className = 'note-btn';
+        btn.className = 'note-btn kazoo-btn';
         
-        // Determine display name
+        // Determine pitch and octave display
         const letter = note.replace(/[0-9]/g, '');
         const octave = parseInt(note.replace(/[^0-9]/g, ''), 10) || 4;
-        let displayName = letter.toLowerCase();
-        let isCompoundLabel = false;
+        const pitch = letter.toLowerCase();
+        let octaveTag = '';
         
         if (letterCounts[letter] > 1) {
             const playerOctaves = notes
@@ -288,37 +303,57 @@ function buildNoteButtons(notes) {
             const maxOct = playerOctaves[playerOctaves.length - 1];
 
             if (octave === minOct) {
-                displayName = `low ${letter.toLowerCase()}`;
-                isCompoundLabel = true;
+                octaveTag = 'low';
             } else if (octave === maxOct) {
-                displayName = `high ${letter.toLowerCase()}`;
-                isCompoundLabel = true;
-            } else {
-                displayName = letter.toLowerCase();
+                octaveTag = 'high';
             }
         }
-        
-        const labelSpan = document.createElement('span');
-        labelSpan.className = 'note-label';
-        labelSpan.textContent = displayName;
-        if (isCompoundLabel) labelSpan.style.fontSize = '32px';
-        btn.appendChild(labelSpan);
+
+        // Set hue filter
+        let filterValue = KAZOO_HUE_FILTERS[pitch] || 'hue-rotate(0deg)';
+        if (note === 'C5') {
+            filterValue = 'hue-rotate(295deg)';
+        }
+        btn.style.setProperty('--kazoo-filter', filterValue);
+
+        // Build Kazoo wrapper
+        const wrapper = document.createElement('div');
+        wrapper.className = 'kazoo-wrapper';
+
+        const img = document.createElement('img');
+        img.src = 'kazoo.png';
+        img.alt = `kazoo ${note}`;
+        img.className = 'kazoo-img';
+        img.draggable = false;
+        wrapper.appendChild(img);
+
+        // Circular note resonator badge
+        const badge = document.createElement('div');
+        badge.className = 'kazoo-note-badge';
+
+        const pitchSpan = document.createElement('span');
+        pitchSpan.className = 'badge-pitch';
+        pitchSpan.textContent = pitch;
+        badge.appendChild(pitchSpan);
+
+        if (octaveTag) {
+            const octSpan = document.createElement('span');
+            octSpan.className = 'badge-octave';
+            octSpan.textContent = octaveTag;
+            badge.appendChild(octSpan);
+        }
+        wrapper.appendChild(badge);
 
         // Highlight starting note if conductor in practice mode
         if (isConductor && note === startingNote && subMode === 'practice') {
             btn.classList.add('starting-note');
-            const badge = document.createElement('span');
-            badge.className = 'first-badge';
-            badge.textContent = '1st';
-            btn.appendChild(badge);
+            const firstBadge = document.createElement('span');
+            firstBadge.className = 'first-badge';
+            firstBadge.textContent = '1st';
+            wrapper.appendChild(firstBadge);
         }
-        
-        // CSS variable based color mapping
-        let colorVarName = `--note-${letter.toLowerCase().replace('#', 's')}`;
-        if (note === 'C5') {
-            colorVarName = '--note-c5';
-        }
-        btn.style.backgroundColor = `var(${colorVarName}, #888)`;
+
+        btn.appendChild(wrapper);
         
         // Touch / Click events with hold sustain
         let activeNoteHandle = null;

@@ -191,72 +191,226 @@ input:focus {
 }
 
 #note-buttons-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
     width: 100%;
     flex: 1 1 0;
     min-height: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0;
 }
 
-.note-btn {
-    flex: 1 1 100%;
+/* Layout 1: 1 large centered kazoo */
+#note-buttons-container.layout-1 {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#note-buttons-container.layout-1 .kazoo-btn {
+    width: 100%;
+    height: 100%;
+    max-width: 220px;
+}
+
+/* Layout 2: 2 vertical kazoos side-by-side */
+#note-buttons-container.layout-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    width: 100%;
+    max-width: 440px;
+    height: 100%;
+    align-items: center;
+    justify-items: center;
+}
+
+#note-buttons-container.layout-2 .kazoo-btn {
+    width: 100%;
+    height: 100%;
+}
+
+/* Layout 3: 3 vertical kazoos side-by-side */
+#note-buttons-container.layout-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 500px;
+    height: 100%;
+    align-items: center;
+    justify-items: center;
+}
+
+#note-buttons-container.layout-3 .kazoo-btn {
+    width: 100%;
+    height: 100%;
+}
+
+/* Layout 4: 2x2 grid of vertical kazoos */
+#note-buttons-container.layout-4 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 12px 20px;
+    width: 100%;
+    max-width: 360px;
+    height: 100%;
+    align-items: center;
+    justify-items: center;
+}
+
+#note-buttons-container.layout-4 .kazoo-btn {
+    width: 100%;
+    height: 100%;
+}
+
+/* Layout More (5+): 3x2 grid */
+#note-buttons-container.layout-more {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 8px 12px;
+    width: 100%;
+    max-width: 440px;
+    height: 100%;
+    align-items: center;
+    justify-items: center;
+}
+
+#note-buttons-container.layout-more .kazoo-btn {
+    width: 100%;
+    height: 100%;
+}
+
+/* Kazoo Button Component */
+.kazoo-btn {
+    background: transparent;
     border: none;
-    border-radius: 20px;
-    font-family: var(--font-display);
-    font-size: 58px;
-    font-weight: 400;
-    color: white;
-    box-shadow: 0 8px 0 rgba(0,0,0,0.2), inset 0 4px 0 rgba(255,255,255,0.2);
+    outline: none;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
     position: relative;
-    transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
-    text-transform: lowercase;
+    touch-action: manipulation;
+    padding: 0;
+    margin: 0;
 }
 
-.note-btn:active, .note-btn.active {
-    transform: translateY(8px) scale(0.98);
-    box-shadow: 0 0 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.2);
-    filter: brightness(1.2);
+.kazoo-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: auto;
+    transition: transform 0.08s ease;
 }
 
-.note-btn.starting-note {
-    border: 3px solid #fde047;
-    box-shadow: 0 8px 0 rgba(0,0,0,0.2), 0 0 25px rgba(250, 204, 21, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.4);
-    animation: startingGlow 1.8s infinite alternate;
+.kazoo-img {
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    filter: var(--kazoo-filter, none) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4));
+    transition: filter 0.15s ease;
 }
 
-@keyframes startingGlow {
+.kazoo-btn:active .kazoo-wrapper,
+.kazoo-btn.active .kazoo-wrapper {
+    transform: scale(0.95) translateY(4px);
+}
+
+.kazoo-btn:active .kazoo-img,
+.kazoo-btn.active .kazoo-img {
+    filter: var(--kazoo-filter, none) brightness(1.25) drop-shadow(0 0 16px rgba(255, 255, 255, 0.45));
+}
+
+.kazoo-btn.starting-note .kazoo-img {
+    filter: var(--kazoo-filter, none) drop-shadow(0 0 20px #facc15) brightness(1.15) !important;
+    animation: kazooGlow 1.8s infinite alternate;
+}
+
+@keyframes kazooGlow {
     from {
-        box-shadow: 0 8px 0 rgba(0,0,0,0.2), 0 0 15px rgba(250, 204, 21, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2);
-        border-color: #eab308;
+        filter: var(--kazoo-filter, none) drop-shadow(0 0 12px rgba(250, 204, 21, 0.5)) brightness(1.1);
     }
     to {
-        box-shadow: 0 8px 0 rgba(0,0,0,0.2), 0 0 30px rgba(250, 204, 21, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.5);
-        border-color: #ffffff;
+        filter: var(--kazoo-filter, none) drop-shadow(0 0 26px rgba(250, 204, 21, 0.95)) brightness(1.25);
     }
 }
 
-.note-btn .first-badge {
+.kazoo-btn .first-badge {
     position: absolute;
-    top: 10px;
-    right: 15px;
+    top: 0;
+    right: -6px;
     background: #eab308;
     color: #0f172a;
     font-family: var(--font-display);
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 400;
-    padding: 3px 12px;
-    border-radius: 20px;
+    padding: 2px 10px;
+    border-radius: 16px;
     letter-spacing: 0.5px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
     text-transform: lowercase;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.kazoo-note-badge {
+    position: absolute;
+    top: 61.6%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 38%;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    background: rgba(10, 10, 26, 0.82);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    line-height: 1;
+    user-select: none;
+    text-transform: lowercase;
+}
+
+.kazoo-note-badge .badge-pitch {
+    font-size: 2.2rem;
+    font-weight: 400;
+}
+
+.kazoo-note-badge .badge-octave {
+    font-size: 0.8rem;
+    opacity: 0.85;
+    margin-top: -2px;
+}
+
+.layout-3 .kazoo-note-badge .badge-pitch {
+    font-size: 1.8rem;
+}
+.layout-4 .kazoo-note-badge .badge-pitch {
+    font-size: 1.6rem;
+}
+.layout-4 .kazoo-note-badge .badge-octave {
+    font-size: 0.65rem;
+}
+.layout-more .kazoo-note-badge .badge-pitch {
+    font-size: 1.3rem;
+}
+.layout-more .kazoo-note-badge .badge-octave {
+    font-size: 0.6rem;
 }
 
 /* Conductor Controls */
@@ -326,18 +480,7 @@ input:focus {
     animation: pulse 1s infinite;
 }
 
-/* Grid layouts based on number of buttons */
-.layout-2 .note-btn {
-    flex: 1 1 100%;
-}
 
-.layout-3 .note-btn {
-    flex: 1 1 100%;
-}
-
-.layout-4 .note-btn, .layout-more .note-btn {
-    flex: 1 1 40%;
-}
 
 /* Fail Overlay */
 #fail-overlay {
