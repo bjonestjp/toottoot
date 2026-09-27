@@ -1,6 +1,6 @@
 /* host.css */
 body {
-    background-color: #0f172a;
+    background-color: #0a0a1a;
     color: #f8fafc;
     overflow: hidden; /* TV screen, no scrolling */
     margin: 0;
@@ -13,10 +13,21 @@ body {
     width: 100vw;
 }
 
+#bg-visualizer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    pointer-events: none;
+}
+
 #app {
     width: 100%;
     height: 100%;
     position: relative;
+    z-index: 1;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -256,7 +267,8 @@ body {
 
 /* COUNTDOWN */
 #view-countdown {
-    background-color: rgba(15, 23, 42, 0.95);
+    background-color: rgba(10, 10, 26, 0.82);
+    backdrop-filter: blur(8px);
     z-index: 20;
     display: flex;
     flex-direction: column;
@@ -459,7 +471,7 @@ body {
     width: 100%;
     height: 100%;
     z-index: -1;
-    background: radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%);
+    background: radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.4) 0%, rgba(10, 10, 26, 0.75) 100%);
     transition: background 0.3s ease;
 }
 
@@ -491,7 +503,8 @@ body {
 
 /* WIN VIEW */
 #view-win {
-    background: linear-gradient(135deg, #1e1b4b, #312e81);
+    background: radial-gradient(circle at 50% 50%, rgba(30, 27, 75, 0.78) 0%, rgba(10, 10, 26, 0.9) 100%);
+    backdrop-filter: blur(8px);
     z-index: 25;
 }
 

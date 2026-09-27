@@ -1,7 +1,8 @@
-import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=7';
-import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=7';
-import { generateRoomCode } from './room-code.js?v=7';
-import { HostTransport } from './transport.js?v=7';
+import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=9';
+import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=9';
+import { generateRoomCode } from './room-code.js?v=9';
+import { HostTransport } from './transport.js?v=9';
+import { initVisualizer, triggerNotePulse, setVisualizerMode } from './visualizer.js?v=9';
 
 // DOM Elements
 const views = {
@@ -100,6 +101,13 @@ function init() {
     document.body.addEventListener('click', () => {
         initAudio();
     }, { once: true });
+
+    // Initialize 3D Background Visualizer
+    const canvas = document.getElementById('bg-visualizer');
+    if (canvas) {
+        initVisualizer(canvas);
+        setVisualizerMode('lobby');
+    }
 }
 
 function renderDifficultySelector() {
@@ -134,6 +142,14 @@ function switchView(viewName) {
     gameState = viewName;
     Object.values(views).forEach(v => v.classList.remove('active'));
     views[viewName].classList.add('active');
+
+    if (viewName === 'lobby') {
+        setVisualizerMode('lobby');
+    } else if (viewName === 'playing') {
+        setVisualizerMode(subMode);
+    } else if (viewName === 'win') {
+        setVisualizerMode('performance');
+    }
 }
 
 function handlePlayerMessage(playerId, data) {
@@ -247,6 +263,7 @@ function startTimer() {
 }
 
 function setRehearsalUI() {
+    setVisualizerMode('rehearsal');
     if (elModeBadge) {
         elModeBadge.className = 'mode-badge badge-rehearsal';
         elModeBadge.textContent = '🎶 rehearsal (safe practice)';
@@ -267,6 +284,7 @@ function setRehearsalUI() {
 }
 
 function setPerformanceUI() {
+    setVisualizerMode('performance');
     if (elModeBadge) {
         elModeBadge.className = 'mode-badge badge-performance';
         elModeBadge.textContent = '🔥 showtime (performance)';
@@ -387,6 +405,9 @@ function startGame(optionalSong = null) {
 
 function handleNoteDown(playerId, note) {
     if (gameState !== 'playing') return;
+    
+    // Pulse 3D background visualizer with note energy and color
+    triggerNotePulse(note);
     
     const expectedNote = currentSong.notes[progress];
     
