@@ -1,5 +1,5 @@
-import { initAudio, playNote, playFail } from './audio.js?v=3';
-import { PlayerTransport } from './transport.js?v=3';
+import { initAudio, playNote, startNote, stopNote, playFail } from './audio.js?v=4';
+import { PlayerTransport } from './transport.js?v=4';
 
 // State
 let playerName = '';
@@ -182,7 +182,9 @@ function buildNoteButtons(notes) {
         }
         btn.style.backgroundColor = `var(${colorVarName}, #888)`;
         
-        // Touch events
+        // Touch / Click events with hold sustain
+        let activeNoteHandle = null;
+
         const pressHandler = (e) => {
             e.preventDefault(); // Prevent click delay and double tap
             if (!audioInitialized) {
@@ -194,20 +196,34 @@ function buildNoteButtons(notes) {
             btn.classList.add('active');
             
             // Haptic
-            if (navigator.vibrate) navigator.vibrate(50);
+            if (navigator.vibrate) navigator.vibrate(40);
             
-            // Audio
-            playNote(note);
+            // Start audio locally
+            if (activeNoteHandle) {
+                stopNote(activeNoteHandle);
+            }
+            activeNoteHandle = startNote(note);
             
             // Network
             if (transport) {
-                transport.sendToHost({ type: 'note', note: note });
+                transport.sendToHost({ type: 'note-down', note: note });
             }
         };
 
         const releaseHandler = (e) => {
             e.preventDefault();
             btn.classList.remove('active');
+            
+            // Stop audio locally
+            if (activeNoteHandle) {
+                stopNote(activeNoteHandle);
+                activeNoteHandle = null;
+            }
+
+            // Network
+            if (transport) {
+                transport.sendToHost({ type: 'note-up', note: note });
+            }
         };
 
         btn.addEventListener('touchstart', pressHandler, { passive: false });

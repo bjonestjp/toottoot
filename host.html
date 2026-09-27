@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="css/host.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <script type="module" src="js/host.js?v=3" defer></script>
+    <script type="module" src="js/host.js?v=4" defer></script>
 </head>
 <body>
     <div id="app">
@@ -37,6 +37,12 @@
                     <!-- Player cards go here -->
                     <div class="waiting-text">Waiting for players...</div>
                 </div>
+            </div>
+
+            <div class="difficulty-section">
+                <h2>Difficulty Level</h2>
+                <div class="difficulty-chips" id="difficulty-chips"></div>
+                <div class="difficulty-preview" id="difficulty-preview"></div>
             </div>
 
             <button id="btn-start-game" class="btn-primary" disabled>Start Game (Need 2+)</button>
@@ -90,7 +96,9 @@
                     </div>
                 </div>
                 
-                <button id="btn-next-song" class="btn-primary">Next Song</button>
+                <div class="win-actions" id="win-actions">
+                    <button id="btn-next-song" class="btn-primary">Next Song</button>
+                </div>
             </div>
             <!-- Confetti container -->
             <div id="confetti" class="confetti-container"></div>

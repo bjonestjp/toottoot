@@ -102,14 +102,64 @@ export function getSongById(id) {
   return songs.find(s => s.id === id);
 }
 
-/**
- * Get a random song, optionally filtered by max difficulty
- * @param {number} [maxDifficulty=5] 
- * @returns {Object}
- */
 export function getRandomSong(maxDifficulty = 5) {
   const filtered = songs.filter(s => s.difficulty <= maxDifficulty);
   if (filtered.length === 0) return songs[0];
   const randIndex = Math.floor(Math.random() * filtered.length);
   return filtered[randIndex];
+}
+
+export const DIFFICULTY_LEVELS = [
+  { level: 1, name: 'Warmup', emoji: '⭐', description: 'Simple 3–5 note melodies' },
+  { level: 2, name: 'Casual', emoji: '⭐⭐', description: 'Familiar 7-note melodies' },
+  { level: 3, name: 'Melodic', emoji: '⭐⭐⭐', description: 'Tricker steps & jumps' },
+  { level: 4, name: 'Harmonic', emoji: '⭐⭐⭐⭐', description: 'Wider ranges & intervals' },
+  { level: 5, name: 'Maestro', emoji: '⭐⭐⭐⭐⭐', description: 'Complex minor melody' }
+];
+
+/**
+ * Get all songs for a specific difficulty level
+ * @param {number} level (1-5)
+ * @returns {Object[]}
+ */
+export function getSongsByDifficulty(level) {
+  return songs.filter(s => s.difficulty === level);
+}
+
+/**
+ * Get the next song at a given difficulty level, prioritizing unplayed ones.
+ * @param {number} level
+ * @param {Set|Array} playedSongIds
+ * @param {string} [excludeId]
+ * @returns {Object|null}
+ */
+export function getNextSongAtDifficulty(level, playedSongIds = new Set(), excludeId = null) {
+  const levelSongs = getSongsByDifficulty(level);
+  if (levelSongs.length === 0) return null;
+
+  const playedSet = playedSongIds instanceof Set ? playedSongIds : new Set(playedSongIds);
+
+  // First priority: unplayed songs at this level (not matching excludeId)
+  const unplayed = levelSongs.filter(s => !playedSet.has(s.id) && s.id !== excludeId);
+  if (unplayed.length > 0) {
+    return unplayed[0];
+  }
+
+  // Second priority: any song at this level that isn't the current song
+  const others = levelSongs.filter(s => s.id !== excludeId);
+  if (others.length > 0) {
+    return others[0];
+  }
+
+  // Fallback to the same song
+  return levelSongs[0];
+}
+
+/**
+ * Check if a higher difficulty level is available
+ * @param {number} currentLevel
+ * @returns {boolean}
+ */
+export function hasNextDifficulty(currentLevel) {
+  return currentLevel < 5;
 }

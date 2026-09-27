@@ -1,7 +1,7 @@
-import { initAudio, playNote, playSuccess, playFail } from './audio.js?v=3';
-import { songs, getSongById, getRandomSong, getUniqueNotes } from './songs.js?v=3';
-import { generateRoomCode } from './room-code.js?v=3';
-import { HostTransport } from './transport.js?v=3';
+import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=4';
+import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=4';
+import { generateRoomCode } from './room-code.js?v=4';
+import { HostTransport } from './transport.js?v=4';
 
 // DOM Elements
 const views = {
@@ -17,6 +17,8 @@ const elQrCodeContainer = document.getElementById('qr-code-container');
 const elJoinUrl = document.getElementById('join-url');
 const elPlayerList = document.getElementById('player-list');
 const elPlayerCount = document.getElementById('player-count');
+const elDifficultyChips = document.getElementById('difficulty-chips');
+const elDifficultyPreview = document.getElementById('difficulty-preview');
 const btnStartGame = document.getElementById('btn-start-game');
 const elCountdownNumber = document.getElementById('countdown-number');
 const elSongTitle = document.getElementById('song-title');
@@ -26,18 +28,21 @@ const elFailCountDisplay = document.getElementById('fail-count-display');
 const elTimerDisplay = document.getElementById('timer-display');
 const elWinTime = document.getElementById('win-time');
 const elWinFails = document.getElementById('win-fails');
-const btnNextSong = document.getElementById('btn-next-song');
+const elWinActions = document.getElementById('win-actions');
 
 // State
 let gameState = 'lobby'; // lobby | countdown | playing | fail | win
 let roomCode = '';
 let transport = null;
 let players = []; // { id, name, assignedNotes }
+let selectedDifficulty = 1; // 1 to 5
+let playedSongIds = new Set();
 let currentSong = null;
 let progress = 0; // index into currentSong.notes[]
 let failCount = 0;
 let startTime = null;
 let timerInterval = null;
+let activeHostNoteHandle = null; // sustained note on host speaker
 
 // Initialize
 function init() {
@@ -58,6 +63,8 @@ function init() {
         elQrCodeContainer.innerHTML = qr.createImgTag(5, 10);
     }
 
+    renderDifficultySelector();
+
     // Connect Host WebSocket Transport
     if (transport) transport.destroy();
     transport = new HostTransport(roomCode, {
@@ -70,13 +77,40 @@ function init() {
         }
     });
 
-    btnStartGame.addEventListener('click', startGame);
-    btnNextSong.addEventListener('click', resetToLobby);
+    btnStartGame.addEventListener('click', () => startGame());
     
     // Pre-init audio context on user interaction
     document.body.addEventListener('click', () => {
         initAudio();
     }, { once: true });
+}
+
+function renderDifficultySelector() {
+    if (!elDifficultyChips) return;
+    elDifficultyChips.innerHTML = DIFFICULTY_LEVELS.map(d => `
+        <button class="difficulty-chip ${d.level === selectedDifficulty ? 'active' : ''}" data-level="${d.level}">
+            ${d.emoji} ${d.name}
+        </button>
+    `).join('');
+
+    updateDifficultyPreview();
+
+    elDifficultyChips.querySelectorAll('.difficulty-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            selectedDifficulty = parseInt(chip.dataset.level, 10);
+            elDifficultyChips.querySelectorAll('.difficulty-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            updateDifficultyPreview();
+        });
+    });
+}
+
+function updateDifficultyPreview() {
+    if (!elDifficultyPreview) return;
+    const levelSongs = getSongsByDifficulty(selectedDifficulty);
+    const songNames = levelSongs.map(s => s.name).join(', ');
+    const diffInfo = DIFFICULTY_LEVELS.find(d => d.level === selectedDifficulty);
+    elDifficultyPreview.textContent = `${diffInfo.description} • Songs: ${songNames}`;
 }
 
 function switchView(viewName) {
@@ -107,8 +141,10 @@ function handlePlayerMessage(playerId, data) {
             // Broadcast player list to everyone
             broadcastPlayerList();
         }
-    } else if (data.type === 'note') {
-        handleNotePlayed(playerId, data.note);
+    } else if (data.type === 'note-down' || data.type === 'note') {
+        handleNoteDown(playerId, data.note);
+    } else if (data.type === 'note-up') {
+        handleNoteUp(playerId, data.note);
     }
 }
 
@@ -189,13 +225,20 @@ function startTimer() {
     }, 1000);
 }
 
-function startGame() {
+function startGame(optionalSong = null) {
     // Need audio context initialized
     initAudio();
     
-    currentSong = getRandomSong();
+    // Pick specific song or next song for selected difficulty
+    currentSong = optionalSong || getNextSongAtDifficulty(selectedDifficulty, playedSongIds) || getRandomSong(selectedDifficulty);
+    playedSongIds.add(currentSong.id);
+    
     progress = 0;
     failCount = 0;
+    if (activeHostNoteHandle) {
+        stopNote(activeHostNoteHandle);
+        activeHostNoteHandle = null;
+    }
     
     const uniqueNotes = getUniqueNotes(currentSong);
     const assignments = distributeNotes(uniqueNotes, players);
@@ -208,7 +251,7 @@ function startGame() {
             notes: p.assignedNotes,
             songName: currentSong.name,
             songEmoji: currentSong.emoji || '🎵',
-            difficulty: currentSong.difficulty || 1
+            difficulty: currentSong.difficulty || selectedDifficulty
         });
     });
     
@@ -236,7 +279,7 @@ function startGame() {
     }, 1000);
 }
 
-function handleNotePlayed(playerId, note) {
+function handleNoteDown(playerId, note) {
     if (gameState !== 'playing') return;
     
     const expectedNote = currentSong.notes[progress];
@@ -244,13 +287,15 @@ function handleNotePlayed(playerId, note) {
     // Is it repeat of previous?
     if (progress > 0 && note === currentSong.notes[progress - 1] && note !== expectedNote) {
         // Just play sound, no penalty
-        playNote(note);
+        if (activeHostNoteHandle) stopNote(activeHostNoteHandle);
+        activeHostNoteHandle = startNote(note);
         return;
     }
     
     if (note === expectedNote) {
-        // Correct
-        playNote(note);
+        // Correct note
+        if (activeHostNoteHandle) stopNote(activeHostNoteHandle);
+        activeHostNoteHandle = startNote(note);
         progress++;
         
         updateProgressUI();
@@ -263,21 +308,34 @@ function handleNotePlayed(playerId, note) {
         
         // Background pulse
         const bg = document.querySelector('.bg-animation');
-        bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.4) 0%, rgba(15, 23, 42, 1) 100%)';
-        setTimeout(() => {
-            bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%)';
-        }, 300);
+        if (bg) {
+            bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.4) 0%, rgba(15, 23, 42, 1) 100%)';
+            setTimeout(() => {
+                bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%)';
+            }, 300);
+        }
         
         if (progress === currentSong.notes.length) {
             handleWin();
         }
     } else {
-        // Wrong
+        // Wrong note
         handleFail();
     }
 }
 
+function handleNoteUp(playerId, note) {
+    if (activeHostNoteHandle && activeHostNoteHandle.noteName === note) {
+        stopNote(activeHostNoteHandle);
+        activeHostNoteHandle = null;
+    }
+}
+
 function handleFail() {
+    if (activeHostNoteHandle) {
+        stopNote(activeHostNoteHandle);
+        activeHostNoteHandle = null;
+    }
     playFail();
     failCount++;
     progress = 0;
@@ -294,6 +352,10 @@ function handleFail() {
 }
 
 function handleWin() {
+    if (activeHostNoteHandle) {
+        stopNote(activeHostNoteHandle);
+        activeHostNoteHandle = null;
+    }
     clearInterval(timerInterval);
     const timeTaken = ((Date.now() - startTime) / 1000).toFixed(1);
     
@@ -308,10 +370,64 @@ function handleWin() {
         fails: failCount
     });
     
+    renderWinProgressionActions();
     switchView('win');
 }
 
+function renderWinProgressionActions() {
+    if (!elWinActions) return;
+    elWinActions.innerHTML = '';
+
+    // Check if another song exists at this difficulty (excluding current one)
+    const nextSongSameDiff = getNextSongAtDifficulty(selectedDifficulty, playedSongIds, currentSong.id);
+    if (nextSongSameDiff && nextSongSameDiff.id !== currentSong.id) {
+        const btnSame = document.createElement('button');
+        btnSame.className = 'btn-primary';
+        btnSame.textContent = `Play Next: ${nextSongSameDiff.name}`;
+        btnSame.addEventListener('click', () => {
+            startGame(nextSongSameDiff);
+        });
+        elWinActions.appendChild(btnSame);
+    } else {
+        // Replay option if all songs at this difficulty were played
+        const btnReplay = document.createElement('button');
+        btnReplay.className = 'btn-primary';
+        btnReplay.textContent = `Replay ${currentSong.name}`;
+        btnReplay.addEventListener('click', () => {
+            startGame(currentSong);
+        });
+        elWinActions.appendChild(btnReplay);
+    }
+
+    // Level up option if next difficulty exists
+    if (hasNextDifficulty(selectedDifficulty)) {
+        const nextLevel = selectedDifficulty + 1;
+        const nextDiff = DIFFICULTY_LEVELS.find(d => d.level === nextLevel);
+        const btnLevelUp = document.createElement('button');
+        btnLevelUp.className = 'btn-primary btn-level-up';
+        btnLevelUp.textContent = `Level Up: ${nextDiff.emoji} ${nextDiff.name} 🚀`;
+        btnLevelUp.addEventListener('click', () => {
+            selectedDifficulty = nextLevel;
+            renderDifficultySelector();
+            startGame();
+        });
+        elWinActions.appendChild(btnLevelUp);
+    }
+
+    // Return to Lobby button
+    const btnLobby = document.createElement('button');
+    btnLobby.className = 'btn-secondary-action';
+    btnLobby.textContent = 'Change Difficulty / Lobby';
+    btnLobby.addEventListener('click', resetToLobby);
+    elWinActions.appendChild(btnLobby);
+}
+
 function resetToLobby() {
+    if (activeHostNoteHandle) {
+        stopNote(activeHostNoteHandle);
+        activeHostNoteHandle = null;
+    }
+    renderDifficultySelector();
     switchView('lobby');
     broadcast({ type: 'restart' });
 }
