@@ -35,8 +35,8 @@ class Visualizer {
     // Simulation Clock & Energy
     this.time = 0;
     this.lastFrameTime = 0;
-    this.ambientEnergy = 0.32;
-    this.energy = 0.32;
+    this.ambientEnergy = 0.42;
+    this.energy = 0.42;
     this.mode = 'lobby'; // lobby | rehearsal | performance
 
     // Color Transitions
@@ -46,11 +46,11 @@ class Visualizer {
     this.targetColor2 = [...DEFAULT_COLOR_2];
 
     // 3D Ribbons Config
-    this.numRibbons = 4;
-    this.ribbonSegments = 90;
+    this.numRibbons = 5;
+    this.ribbonSegments = 95;
 
     // 3D Particles Config
-    this.numParticles = 260;
+    this.numParticles = 300;
     this.particles = [];
     this.initParticles();
 
@@ -154,11 +154,11 @@ class Visualizer {
   setMode(mode) {
     this.mode = mode;
     if (mode === 'performance' || mode === 'showtime') {
-      this.ambientEnergy = 0.50;
+      this.ambientEnergy = 0.65;
     } else if (mode === 'rehearsal') {
-      this.ambientEnergy = 0.38;
+      this.ambientEnergy = 0.52;
     } else {
-      this.ambientEnergy = 0.28;
+      this.ambientEnergy = 0.42;
     }
   }
 
@@ -329,10 +329,10 @@ class Visualizer {
       const first = nodes[0];
       const last = nodes[nodes.length - 1];
       const grad = ctx.createLinearGradient(first.x, first.y, last.x, last.y);
-      const ribbonAlpha = 0.65 + this.energy * 0.35;
-      grad.addColorStop(0.0, `rgba(${c1[0]}, ${c1[1]}, ${c1[2]}, ${(0.7 * ribbonAlpha).toFixed(2)})`);
-      grad.addColorStop(0.5, `rgba(${c2[0]}, ${c2[1]}, ${c2[2]}, ${(0.9 * ribbonAlpha).toFixed(2)})`);
-      grad.addColorStop(1.0, `rgba(${c1[0]}, ${c1[1]}, ${c1[2]}, ${(0.7 * ribbonAlpha).toFixed(2)})`);
+      const ribbonAlpha = Math.min(1.0, 0.80 + this.energy * 0.20);
+      grad.addColorStop(0.0, `rgba(${c1[0]}, ${c1[1]}, ${c1[2]}, ${(0.85 * ribbonAlpha).toFixed(2)})`);
+      grad.addColorStop(0.5, `rgba(${c2[0]}, ${c2[1]}, ${c2[2]}, ${(0.98 * ribbonAlpha).toFixed(2)})`);
+      grad.addColorStop(1.0, `rgba(${c1[0]}, ${c1[1]}, ${c1[2]}, ${(0.85 * ribbonAlpha).toFixed(2)})`);
 
       // Pass A: Outer Neon Glow Halo
       ctx.beginPath();
@@ -343,8 +343,8 @@ class Visualizer {
         ctx.quadraticCurveTo(nodes[s - 1].x, nodes[s - 1].y, xc, yc);
       }
       ctx.lineTo(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y);
-      ctx.lineWidth = 14 + this.energy * 10;
-      ctx.strokeStyle = `rgba(${c2[0]}, ${c2[1]}, ${c2[2]}, ${(0.22 * ribbonAlpha).toFixed(2)})`;
+      ctx.lineWidth = 22 + this.energy * 14;
+      ctx.strokeStyle = `rgba(${c2[0]}, ${c2[1]}, ${c2[2]}, ${(0.32 * ribbonAlpha).toFixed(2)})`;
       ctx.stroke();
 
       // Pass B: Main Radiant Ribbon Body
@@ -356,7 +356,7 @@ class Visualizer {
         ctx.quadraticCurveTo(nodes[s - 1].x, nodes[s - 1].y, xc, yc);
       }
       ctx.lineTo(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y);
-      ctx.lineWidth = 5 + this.energy * 4;
+      ctx.lineWidth = 7.5 + this.energy * 5;
       ctx.strokeStyle = grad;
       ctx.stroke();
 
@@ -369,8 +369,8 @@ class Visualizer {
         ctx.quadraticCurveTo(nodes[s - 1].x, nodes[s - 1].y, xc, yc);
       }
       ctx.lineTo(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y);
-      ctx.lineWidth = 1.8 + this.energy * 1.2;
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.85 * ribbonAlpha).toFixed(2)})`;
+      ctx.lineWidth = 2.2 + this.energy * 1.5;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.92 * ribbonAlpha).toFixed(2)})`;
       ctx.stroke();
     }
 

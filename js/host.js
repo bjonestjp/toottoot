@@ -1,8 +1,8 @@
-import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=12';
-import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=12';
-import { generateRoomCode } from './room-code.js?v=12';
-import { HostTransport } from './transport.js?v=12';
-import { initVisualizer, triggerNotePulse, setVisualizerMode } from './visualizer.js?v=12';
+import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=13';
+import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=13';
+import { generateRoomCode } from './room-code.js?v=13';
+import { HostTransport } from './transport.js?v=13';
+import { initVisualizer, triggerNotePulse, setVisualizerMode } from './visualizer.js?v=13';
 
 // DOM Elements
 const views = {
@@ -301,10 +301,10 @@ function setPerformanceUI() {
 function triggerCorrectPulse() {
     const bg = document.querySelector('.bg-animation');
     if (bg) {
-        bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.4) 0%, rgba(15, 23, 42, 1) 100%)';
+        bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.25) 0%, transparent 70%)';
         setTimeout(() => {
-            bg.style.background = 'radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%)';
-        }, 300);
+            bg.style.background = 'transparent';
+        }, 400);
     }
 }
 
