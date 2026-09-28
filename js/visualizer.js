@@ -1,446 +1,120 @@
 /**
  * Toot - 3D Particle Ribbon Visualizer
- * Pure WebGL procedural background inspired by classic Winamp / MilkDrop / AVS.
- * Features 3D parametric ribbons and a luminous particle vortex with note reactivity.
+ * Procedural background inspired by classic Winamp / MilkDrop / AVS.
+ * Features 3D parametric ribbons, a swirling luminous particle vortex,
+ * phosphor motion trails, and dynamic note reactivity.
  */
 
-// Note to RGB color mapping
+// Note to RGB color mapping matching the Toot palette
 const NOTE_COLORS = {
-  'c': [1.00, 0.42, 0.42],  // Coral Red
-  'c#': [1.00, 0.52, 0.38],
-  'd': [1.00, 0.63, 0.42],  // Warm Orange
-  'd#': [1.00, 0.74, 0.38],
-  'e': [1.00, 0.85, 0.24],  // Vivid Yellow
-  'f': [0.42, 1.00, 0.55],  // Bright Green
-  'f#': [0.10, 0.80, 0.65],  // Teal
-  'g': [0.42, 0.87, 1.00],  // Cyan / Sky
-  'g#': [0.55, 0.42, 0.95],
-  'a': [0.42, 0.55, 1.00],  // Royal Blue
-  'a#': [0.63, 0.42, 1.00],
-  'b': [0.77, 0.42, 1.00],  // Purple
-  'c5': [1.00, 0.42, 0.71]  // Pink / Magenta
+  'c':  [255, 107, 107], // Coral Red
+  'c#': [255, 133, 107], // Coral Orange
+  'd':  [255, 160, 107], // Warm Orange
+  'd#': [255, 188, 107], // Amber
+  'e':  [255, 217, 61],  // Vivid Yellow
+  'f':  [107, 255, 141], // Bright Green
+  'f#': [26, 188, 156],  // Teal
+  'g':  [107, 221, 255], // Cyan
+  'g#': [155, 89, 182],  // Purple
+  'a':  [107, 141, 255], // Royal Blue
+  'a#': [160, 107, 255], // Violet
+  'b':  [196, 107, 255], // Magenta
+  'c5': [255, 107, 181]  // Pink / Magenta (High Octave)
 };
 
-const DEFAULT_COLOR_1 = [0.12, 0.55, 0.95]; // Neon cyan-blue
-const DEFAULT_COLOR_2 = [0.65, 0.20, 0.95]; // Electric violet
+const DEFAULT_COLOR_1 = [30, 144, 255];  // Electric Cyan-Blue
+const DEFAULT_COLOR_2 = [170, 50, 250];  // Vivid Neon Violet
 
 class Visualizer {
   constructor(canvas) {
     this.canvas = canvas;
-    this.gl = null;
-    this.ctx2d = null;
+    this.ctx = canvas.getContext('2d');
     this.animationFrameId = null;
     this.frameCount = 0;
-    
-    // Physics & State
+
+    // Simulation Clock & Energy
     this.time = 0;
     this.lastFrameTime = 0;
-    this.ambientEnergy = 0.30;
-    this.energy = 0.30;
+    this.ambientEnergy = 0.32;
+    this.energy = 0.32;
     this.mode = 'lobby'; // lobby | rehearsal | performance
-    
-    // Colors
+
+    // Color Transitions
     this.currentColor1 = [...DEFAULT_COLOR_1];
     this.currentColor2 = [...DEFAULT_COLOR_2];
     this.targetColor1 = [...DEFAULT_COLOR_1];
     this.targetColor2 = [...DEFAULT_COLOR_2];
 
-    // WebGL Resources & Cached Locations
-    this.ribbonProgram = null;
-    this.particleProgram = null;
-    this.ribbonBuffer = null;
-    this.particleBuffer = null;
-    this.rLocs = {};
-    this.pLocs = {};
-
-    // Config
+    // 3D Ribbons Config
     this.numRibbons = 4;
-    this.ribbonSegments = 140;
-    this.numParticles = 1600;
-    this.particles = null;
+    this.ribbonSegments = 90;
+
+    // 3D Particles Config
+    this.numParticles = 260;
+    this.particles = [];
+    this.initParticles();
+
+    // Shockwave Rings on Note Hits
+    this.shockwaves = [];
+
+    // Viewport Size
+    this.width = window.innerWidth || 1920;
+    this.height = window.innerHeight || 1080;
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     this.init();
   }
 
+  initParticles() {
+    this.particles = [];
+    for (let i = 0; i < this.numParticles; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const radius = 0.4 + Math.random() * 2.2;
+      this.particles.push({
+        theta,
+        radius,
+        z: Math.random() * 5.0 + 1.2,
+        speed: (0.3 + Math.random() * 0.7) * (Math.random() > 0.5 ? 1 : -1),
+        zSpeed: 0.8 + Math.random() * 1.4,
+        size: 1.2 + Math.random() * 2.6,
+        colorMix: Math.random(),
+        twinklePhase: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
   init() {
-    console.log('[Toot Visualizer] Initializing...');
-
-    const glOptions = {
-      alpha: false,
-      antialias: true,
-      depth: false,
-      powerPreference: 'high-performance'
-    };
-
-    let gl = null;
-    try {
-      gl = this.canvas.getContext('webgl', glOptions) || 
-           this.canvas.getContext('experimental-webgl', glOptions);
-    } catch (e) {
-      console.warn('[Toot Visualizer] WebGL context exception:', e);
-    }
-
-    if (gl) {
-      this.gl = gl;
-      const shadersOk = this.setupShaders();
-      if (shadersOk) {
-        this.setupRibbons();
-        this.setupParticles();
-        console.log('[Toot Visualizer] WebGL engine active and ready');
-      } else {
-        console.warn('[Toot Visualizer] Shader compilation failed');
-        this.gl = null;
-      }
-    }
-
-    // Fallback to Canvas 2D if WebGL was unavailable or shaders failed
-    if (!this.gl) {
-      console.warn('[Toot Visualizer] Using Canvas 2D fallback');
-      try {
-        this.ctx2d = this.canvas.getContext('2d');
-        this.setupParticles2D();
-      } catch (e) {
-        console.error('[Toot Visualizer] 2D context error:', e);
-      }
-    }
+    console.log('[Toot Visualizer] Initializing 3D Particle Ribbon Engine...');
 
     this.resize = this.resize.bind(this);
     window.addEventListener('resize', this.resize);
     this.resize();
 
+    // Fill initial canvas background so there is never a blank flash
+    if (this.ctx) {
+      this.ctx.fillStyle = '#0a0a1a';
+      this.ctx.fillRect(0, 0, this.width, this.height);
+    }
+
     this.render = this.render.bind(this);
     this.animationFrameId = requestAnimationFrame(this.render);
+    console.log('[Toot Visualizer] Render loop active');
   }
 
   resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.floor((window.innerWidth || 1920) * dpr);
-    const h = Math.floor((window.innerHeight || 1080) * dpr);
-    
-    if (this.canvas.width !== w || this.canvas.height !== h) {
-      this.canvas.width = w;
-      this.canvas.height = h;
-    }
-    
-    if (this.gl) {
-      this.gl.viewport(0, 0, w, h);
-    }
-  }
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const displayWidth = window.innerWidth || 1920;
+    const displayHeight = window.innerHeight || 1080;
 
-  createShader(type, source) {
-    const gl = this.gl;
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.error('[Toot Visualizer] Shader compile error:', gl.getShaderInfoLog(shader));
-      gl.deleteShader(shader);
-      return null;
-    }
-    return shader;
-  }
+    this.width = displayWidth;
+    this.height = displayHeight;
 
-  createProgram(vsSource, fsSource) {
-    const gl = this.gl;
-    const vs = this.createShader(gl.VERTEX_SHADER, vsSource);
-    const fs = this.createShader(gl.FRAGMENT_SHADER, fsSource);
-    if (!vs || !fs) return null;
+    const targetW = Math.floor(displayWidth * this.dpr);
+    const targetH = Math.floor(displayHeight * this.dpr);
 
-    const program = gl.createProgram();
-    gl.attachShader(program, vs);
-    gl.attachShader(program, fs);
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error('[Toot Visualizer] Program link error:', gl.getProgramInfoLog(program));
-      return null;
-    }
-    return program;
-  }
-
-  setupShaders() {
-    const gl = this.gl;
-
-    // --- Ribbon Shaders (GLSL ES 1.0 compliant) ---
-    const ribbonVS = `
-      attribute vec3 aPosition;
-      attribute vec2 aRibbonCoord;
-      
-      uniform vec2 uResolution;
-      
-      varying vec2 vRibbonCoord;
-      varying float vDepth;
-
-      void main() {
-        vRibbonCoord = aRibbonCoord;
-        
-        float z = aPosition.z + 3.0;
-        vDepth = clamp(z / 6.0, 0.0, 1.0);
-        
-        float fov = 1.8;
-        vec2 projected = (aPosition.xy / z) * fov;
-        
-        float aspect = uResolution.x / uResolution.y;
-        if (aspect > 1.0) {
-          projected.x /= aspect;
-        } else {
-          projected.y *= aspect;
-        }
-
-        gl_Position = vec4(projected, 0.0, 1.0);
-      }
-    `;
-
-    const ribbonFS = `
-      precision mediump float;
-      
-      uniform vec3 uColor1;
-      uniform vec3 uColor2;
-      uniform float uEnergy;
-      
-      varying vec2 vRibbonCoord;
-      varying float vDepth;
-
-      void main() {
-        float edge = clamp(abs(vRibbonCoord.y), 0.0, 1.0);
-        float core = pow(1.0 - edge, 2.0);
-        float glow = exp(-edge * 2.2);
-        
-        vec3 col = mix(uColor1, uColor2, vRibbonCoord.x);
-        col += vec3(0.2, 0.2, 0.25) * uEnergy;
-        
-        float alpha = (core * 0.75 + glow * 0.35) * (0.9 - vDepth * 0.4);
-        gl_FragColor = vec4(col, alpha);
-      }
-    `;
-
-    this.ribbonProgram = this.createProgram(ribbonVS, ribbonFS);
-    if (!this.ribbonProgram) return false;
-
-    // Cache Ribbon Locations
-    const rProg = this.ribbonProgram;
-    this.rLocs = {
-      aPos: gl.getAttribLocation(rProg, 'aPosition'),
-      aCoord: gl.getAttribLocation(rProg, 'aRibbonCoord'),
-      uRes: gl.getUniformLocation(rProg, 'uResolution'),
-      uCol1: gl.getUniformLocation(rProg, 'uColor1'),
-      uCol2: gl.getUniformLocation(rProg, 'uColor2'),
-      uEnergy: gl.getUniformLocation(rProg, 'uEnergy')
-    };
-
-    // --- Particle Shaders (GLSL ES 1.0 compliant) ---
-    const particleVS = `
-      attribute vec3 aPosition;
-      attribute float aPhase;
-      attribute float aSize;
-
-      uniform vec2 uResolution;
-      uniform float uEnergy;
-
-      varying float vAlpha;
-      varying float vPhase;
-
-      void main() {
-        vPhase = aPhase;
-        
-        float z = aPosition.z + 2.8;
-        float fov = 1.8;
-        vec2 projected = (aPosition.xy / z) * fov;
-        
-        float aspect = uResolution.x / uResolution.y;
-        if (aspect > 1.0) {
-          projected.x /= aspect;
-        } else {
-          projected.y *= aspect;
-        }
-
-        float pSize = (aSize * (1.0 + uEnergy * 0.6)) * (450.0 / z) * (uResolution.y / 1000.0);
-        gl_PointSize = clamp(pSize, 1.5, 32.0);
-        gl_Position = vec4(projected, 0.0, 1.0);
-
-        vAlpha = clamp(1.0 - (z - 1.2) / 3.6, 0.1, 0.95);
-      }
-    `;
-
-    const particleFS = `
-      precision mediump float;
-
-      uniform vec3 uColor1;
-      uniform vec3 uColor2;
-      uniform float uEnergy;
-
-      varying float vAlpha;
-      varying float vPhase;
-
-      void main() {
-        vec2 coord = gl_PointCoord - vec2(0.5, 0.5);
-        float dist = length(coord);
-        if (dist > 0.5) discard;
-
-        float glow = exp(-dist * dist * 10.0);
-        vec3 col = mix(uColor1, uColor2, sin(vPhase * 3.14159) * 0.5 + 0.5);
-        col += vec3(0.25, 0.25, 0.25) * uEnergy;
-
-        float alpha = glow * vAlpha * (0.65 + uEnergy * 0.35);
-        gl_FragColor = vec4(col, alpha);
-      }
-    `;
-
-    this.particleProgram = this.createProgram(particleVS, particleFS);
-    if (!this.particleProgram) return false;
-
-    // Cache Particle Locations
-    const pProg = this.particleProgram;
-    this.pLocs = {
-      aPos: gl.getAttribLocation(pProg, 'aPosition'),
-      aPhase: gl.getAttribLocation(pProg, 'aPhase'),
-      aSize: gl.getAttribLocation(pProg, 'aSize'),
-      uRes: gl.getUniformLocation(pProg, 'uResolution'),
-      uCol1: gl.getUniformLocation(pProg, 'uColor1'),
-      uCol2: gl.getUniformLocation(pProg, 'uColor2'),
-      uEnergy: gl.getUniformLocation(pProg, 'uEnergy')
-    };
-
-    return true;
-  }
-
-  setupRibbons() {
-    const gl = this.gl;
-    const floatsPerVertex = 5;
-    const totalVertices = this.numRibbons * this.ribbonSegments * 2;
-    this.ribbonArray = new Float32Array(totalVertices * floatsPerVertex);
-    this.ribbonBuffer = gl.createBuffer();
-  }
-
-  setupParticles() {
-    const gl = this.gl;
-    const num = this.numParticles;
-    this.particles = new Float32Array(num * 8);
-
-    for (let i = 0; i < num; i++) {
-      const idx = i * 8;
-      const theta = Math.random() * Math.PI * 2;
-      const radius = 0.3 + Math.random() * 2.2;
-      const z = (Math.random() - 0.5) * 2.5;
-
-      this.particles[idx]     = Math.cos(theta) * radius; // x
-      this.particles[idx + 1] = Math.sin(theta) * radius; // y
-      this.particles[idx + 2] = z;                       // z
-      this.particles[idx + 3] = Math.random();            // phase
-      this.particles[idx + 4] = 1.2 + Math.random() * 3.2; // size
-      this.particles[idx + 5] = -Math.sin(theta) * (0.15 + Math.random() * 0.25); // vx
-      this.particles[idx + 6] = Math.cos(theta) * (0.15 + Math.random() * 0.25);  // vy
-      this.particles[idx + 7] = (Math.random() - 0.5) * 0.2;                      // vz
-    }
-
-    this.particleBuffer = gl.createBuffer();
-    this.particleRenderData = new Float32Array(num * 5);
-  }
-
-  setupParticles2D() {
-    const num = 120;
-    this.particles2D = [];
-    for (let i = 0; i < num; i++) {
-      this.particles2D.push({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * 0.8,
-        vy: (Math.random() - 0.5) * 0.8,
-        r: 1.5 + Math.random() * 3.5
-      });
-    }
-  }
-
-  updateRibbons(dt) {
-    const numRibbons = this.numRibbons;
-    const segments = this.ribbonSegments;
-    const arr = this.ribbonArray;
-    let ptr = 0;
-
-    const t = this.time;
-    const energy = this.energy;
-    const ampBoost = 1.0 + energy * 0.6;
-    const ribbonHalfWidth = 0.08 * (1.0 + energy * 0.4);
-
-    for (let r = 0; r < numRibbons; r++) {
-      const strandOffset = (r / numRibbons) * Math.PI * 2;
-      const phaseSpeed = 0.7 + r * 0.15;
-
-      for (let s = 0; s < segments; s++) {
-        const u = s / (segments - 1);
-        const param = u * 4.0 + t * phaseSpeed;
-
-        const cx = (Math.sin(param * 1.1 + strandOffset) * 1.25 + 
-                    Math.cos(param * 0.7 - t * 0.3) * 0.55) * ampBoost;
-        const cy = (Math.cos(param * 0.9 + strandOffset * 0.7) * 0.85 + 
-                    Math.sin(param * 1.3 + t * 0.4) * 0.4) * ampBoost;
-        const cz = (Math.sin(param * 0.6 + strandOffset * 1.3) * 1.1 + 
-                    Math.cos(param * 1.1) * 0.3);
-
-        const dParam = 0.05;
-        const nextParam = param + dParam;
-        const nx = (Math.sin(nextParam * 1.1 + strandOffset) * 1.25 + 
-                    Math.cos(nextParam * 0.7 - t * 0.3) * 0.55) * ampBoost;
-        const ny = (Math.cos(nextParam * 0.9 + strandOffset * 0.7) * 0.85 + 
-                    Math.sin(nextParam * 1.3 + t * 0.4) * 0.4) * ampBoost;
-
-        const tx = nx - cx;
-        const ty = ny - cy;
-        const tLen = Math.sqrt(tx * tx + ty * ty) || 1.0;
-        
-        const px = (-ty / tLen) * ribbonHalfWidth;
-        const py = (tx / tLen) * ribbonHalfWidth;
-
-        arr[ptr++] = cx - px;
-        arr[ptr++] = cy - py;
-        arr[ptr++] = cz;
-        arr[ptr++] = u;
-        arr[ptr++] = -1.0;
-
-        arr[ptr++] = cx + px;
-        arr[ptr++] = cy + py;
-        arr[ptr++] = cz;
-        arr[ptr++] = u;
-        arr[ptr++] = 1.0;
-      }
-    }
-  }
-
-  updateParticles(dt) {
-    const num = this.numParticles;
-    const p = this.particles;
-    const out = this.particleRenderData;
-    const speedMult = 1.0 + this.energy * 2.2;
-
-    let outPtr = 0;
-    for (let i = 0; i < num; i++) {
-      const idx = i * 8;
-      
-      p[idx]     += p[idx + 5] * dt * speedMult;
-      p[idx + 1] += p[idx + 6] * dt * speedMult;
-      p[idx + 2] += p[idx + 7] * dt * speedMult;
-      p[idx + 3] += dt * 0.2;
-
-      const x = p[idx];
-      const y = p[idx + 1];
-      const z = p[idx + 2];
-      const dist2D = Math.sqrt(x * x + y * y);
-
-      if (dist2D > 3.2 || dist2D < 0.15 || z > 1.8 || z < -1.8) {
-        const theta = Math.random() * Math.PI * 2;
-        const rad = 0.5 + Math.random() * 2.0;
-        p[idx]     = Math.cos(theta) * rad;
-        p[idx + 1] = Math.sin(theta) * rad;
-        p[idx + 2] = (Math.random() - 0.5) * 2.2;
-        p[idx + 5] = -Math.sin(theta) * (0.15 + Math.random() * 0.25);
-        p[idx + 6] = Math.cos(theta) * (0.15 + Math.random() * 0.25);
-        p[idx + 7] = (Math.random() - 0.5) * 0.2;
-      }
-
-      out[outPtr++] = p[idx];
-      out[outPtr++] = p[idx + 1];
-      out[outPtr++] = p[idx + 2];
-      out[outPtr++] = p[idx + 3];
-      out[outPtr++] = p[idx + 4];
+    if (this.canvas.width !== targetW || this.canvas.height !== targetH) {
+      this.canvas.width = targetW;
+      this.canvas.height = targetH;
     }
   }
 
@@ -448,174 +122,270 @@ class Visualizer {
     if (!noteName) return;
     const cleanNote = noteName.toLowerCase().replace(/[0-9]/g, '');
     const isHighC = noteName.toUpperCase() === 'C5';
-    const noteColor = isHighC ? NOTE_COLORS['c5'] : (NOTE_COLORS[cleanNote] || DEFAULT_COLOR_1);
+    const noteRgb = isHighC ? NOTE_COLORS['c5'] : (NOTE_COLORS[cleanNote] || DEFAULT_COLOR_1);
 
     // Energy spike
-    this.energy = Math.min(2.0, this.energy + 0.7);
+    this.energy = Math.min(2.2, this.energy + 0.85);
 
-    // Transition colors
-    this.targetColor1 = [...noteColor];
+    // Dynamic color burst
+    this.targetColor1 = [...noteRgb];
     this.targetColor2 = [
-      Math.min(1.0, noteColor[0] * 0.4 + 0.3),
-      Math.min(1.0, noteColor[1] * 0.4 + 0.2),
-      Math.min(1.0, noteColor[2] * 0.8 + 0.3)
+      Math.min(255, Math.floor(noteRgb[0] * 0.4 + 140)),
+      Math.min(255, Math.floor(noteRgb[1] * 0.4 + 60)),
+      Math.min(255, Math.floor(noteRgb[2] * 0.9 + 70))
     ];
+
+    // Spawn 3D Shockwave Ring
+    this.shockwaves.push({
+      radius: 0.1,
+      maxRadius: 3.5,
+      speed: 3.2 + this.energy * 1.5,
+      z: 2.5 + Math.random() * 1.5,
+      tilt: (Math.random() - 0.5) * 0.8,
+      color: [...noteRgb],
+      alpha: 0.95
+    });
+
+    if (this.shockwaves.length > 6) {
+      this.shockwaves.shift();
+    }
   }
 
   setMode(mode) {
     this.mode = mode;
     if (mode === 'performance' || mode === 'showtime') {
-      this.ambientEnergy = 0.45;
+      this.ambientEnergy = 0.50;
     } else if (mode === 'rehearsal') {
-      this.ambientEnergy = 0.35;
+      this.ambientEnergy = 0.38;
     } else {
       this.ambientEnergy = 0.28;
     }
   }
 
   render(timestamp) {
-    // ALWAYS request next frame first to guarantee the animation loop can never freeze
+    // Schedule next frame immediately so animation loop never freezes
     this.animationFrameId = requestAnimationFrame(this.render);
 
-    try {
-      if (!timestamp) timestamp = performance.now();
-      if (!this.lastFrameTime) this.lastFrameTime = timestamp;
-      
-      let dt = (timestamp - this.lastFrameTime) / 1000;
-      this.lastFrameTime = timestamp;
-      
-      // Strict sanity check on dt: prevents NaN or large jumps when tab switches
-      if (isNaN(dt) || dt <= 0 || dt > 0.1) {
-        dt = 1 / 60;
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+
+    // Delta time calculation with strict clamping
+    if (!timestamp) timestamp = performance.now();
+    if (!this.lastFrameTime) this.lastFrameTime = timestamp;
+    let dt = (timestamp - this.lastFrameTime) / 1000;
+    this.lastFrameTime = timestamp;
+    if (isNaN(dt) || dt <= 0 || dt > 0.1) dt = 1 / 60;
+
+    // Simulation time advance
+    this.time += dt * (0.75 + this.energy * 1.4);
+    this.energy += (this.ambientEnergy - this.energy) * Math.min(dt * 2.2, 1.0);
+
+    // Smooth color return toward ambient palette
+    const colorSpeed = dt * 1.6;
+    for (let i = 0; i < 3; i++) {
+      this.targetColor1[i] += (DEFAULT_COLOR_1[i] - this.targetColor1[i]) * dt * 0.6;
+      this.targetColor2[i] += (DEFAULT_COLOR_2[i] - this.targetColor2[i]) * dt * 0.6;
+
+      this.currentColor1[i] += (this.targetColor1[i] - this.currentColor1[i]) * colorSpeed;
+      this.currentColor2[i] += (this.targetColor2[i] - this.currentColor2[i]) * colorSpeed;
+    }
+
+    const c1 = this.currentColor1.map(v => Math.round(v));
+    const c2 = this.currentColor2.map(v => Math.round(v));
+    const c1Str = `rgb(${c1[0]}, ${c1[1]}, ${c1[2]})`;
+    const c2Str = `rgb(${c2[0]}, ${c2[1]}, ${c2[2]})`;
+
+    // Canvas & Viewport Setup
+    ctx.save();
+    ctx.scale(this.dpr, this.dpr);
+
+    const w = this.width;
+    const h = this.height;
+    const cx = w * 0.5;
+    const cy = h * 0.5;
+    const fov = Math.min(w, h) * 0.95;
+
+    // --- 1. Phosphor Decay / Motion Trail Background ---
+    // Drawing a semi-transparent dark navy fill gives authentic Winamp phosphorescent ghost trails
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(10, 10, 26, 0.22)';
+    ctx.fillRect(0, 0, w, h);
+
+    // Switch to Additive Blending for radiant neon laser glow
+    ctx.globalCompositeOperation = 'lighter';
+
+    // --- 2. Render 3D Shockwave Rings ---
+    for (let swIdx = this.shockwaves.length - 1; swIdx >= 0; swIdx--) {
+      const sw = this.shockwaves[swIdx];
+      sw.radius += sw.speed * dt;
+      sw.alpha -= dt * 0.65;
+
+      if (sw.alpha <= 0.01 || sw.radius >= sw.maxRadius) {
+        this.shockwaves.splice(swIdx, 1);
+        continue;
       }
 
-      this.time += dt * (0.8 + this.energy * 1.5);
-      this.energy += (this.ambientEnergy - this.energy) * Math.min(dt * 2.5, 1.0);
+      const swScale = fov / (sw.z + 2.5);
+      const swRadiusX = sw.radius * swScale;
+      const swRadiusY = swRadiusX * 0.52;
 
-      const colorLerpSpeed = dt * 1.8;
-      for (let c = 0; c < 3; c++) {
-        this.targetColor1[c] += (DEFAULT_COLOR_1[c] - this.targetColor1[c]) * dt * 0.7;
-        this.targetColor2[c] += (DEFAULT_COLOR_2[c] - this.targetColor2[c]) * dt * 0.7;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(sw.tilt);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, swRadiusX, swRadiusY, 0, 0, Math.PI * 2);
+      ctx.lineWidth = Math.max(2, (8 + this.energy * 6) * sw.alpha);
+      ctx.strokeStyle = `rgba(${sw.color[0]}, ${sw.color[1]}, ${sw.color[2]}, ${(sw.alpha * 0.8).toFixed(2)})`;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = `rgb(${sw.color[0]}, ${sw.color[1]}, ${sw.color[2]})`;
+      ctx.stroke();
+      ctx.restore();
+    }
 
-        this.currentColor1[c] += (this.targetColor1[c] - this.currentColor1[c]) * colorLerpSpeed;
-        this.currentColor2[c] += (this.targetColor2[c] - this.currentColor2[c]) * colorLerpSpeed;
+    // --- 3. Render 3D Swirling Particle Vortex ---
+    const pSpeedMult = 1.0 + this.energy * 2.2;
+    for (let i = 0; i < this.particles.length; i++) {
+      const p = this.particles[i];
+      p.theta += p.speed * dt * pSpeedMult * 0.8;
+      p.z -= p.zSpeed * dt * pSpeedMult;
+      p.twinklePhase += dt * 3.0;
+
+      // Wrap particle back into distance when it passes the camera
+      if (p.z < 0.6) {
+        p.z = 6.0;
+        p.radius = 0.4 + Math.random() * 2.2;
+        p.theta = Math.random() * Math.PI * 2;
       }
 
-      this.frameCount++;
-      if (this.frameCount <= 3) {
-        console.log('[Toot Visualizer] Render frame:', this.frameCount, 'time:', this.time.toFixed(2));
+      // 3D Coordinates
+      const px = Math.cos(p.theta) * p.radius;
+      const py = Math.sin(p.theta) * (p.radius * 0.65) + Math.sin(this.time * 0.8 + i) * 0.15;
+      const pz = p.z;
+
+      // Perspective Projection
+      const pScale = fov / (pz + 2.2);
+      const sx = cx + px * pScale;
+      const sy = cy + py * pScale;
+
+      // Depth-based fade and sizing
+      const depthAlpha = Math.min(1.0, Math.max(0.1, 1.0 - (pz - 1.0) / 4.8));
+      const twinkle = 0.75 + Math.sin(p.twinklePhase) * 0.25;
+      const pAlpha = depthAlpha * twinkle * (0.6 + this.energy * 0.4);
+      const rad = Math.max(1.0, p.size * (pScale / (fov / 5.0)) * (1.0 + this.energy * 0.4));
+
+      // Particle Color
+      const pr = Math.round(c1[0] * (1 - p.colorMix) + c2[0] * p.colorMix);
+      const pg = Math.round(c1[1] * (1 - p.colorMix) + c2[1] * p.colorMix);
+      const pb = Math.round(c1[2] * (1 - p.colorMix) + c2[2] * p.colorMix);
+
+      ctx.beginPath();
+      ctx.arc(sx, sy, rad, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${pr}, ${pg}, ${pb}, ${pAlpha.toFixed(2)})`;
+      ctx.fill();
+
+      // White-hot core for large close particles
+      if (rad > 2.5) {
+        ctx.beginPath();
+        ctx.arc(sx, sy, rad * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${(pAlpha * 0.9).toFixed(2)})`;
+        ctx.fill();
+      }
+    }
+
+    // --- 4. Render 3D Parametric Ribbons ---
+    const numRibbons = this.numRibbons;
+    const segments = this.ribbonSegments;
+    const ampBoost = 1.0 + this.energy * 0.75;
+    const t = this.time;
+
+    for (let r = 0; r < numRibbons; r++) {
+      const strandOffset = (r / numRibbons) * Math.PI * 2;
+      const phaseSpeed = 0.65 + r * 0.12;
+
+      // Build projected nodes for this ribbon strand
+      const nodes = [];
+      for (let s = 0; s < segments; s++) {
+        const u = s / (segments - 1);
+        const param = u * 4.2 + t * phaseSpeed;
+
+        const x = (Math.sin(param * 1.1 + strandOffset) * 1.35 +
+                   Math.cos(param * 0.75 - t * 0.35) * 0.55) * ampBoost;
+        const y = (Math.cos(param * 0.9 + strandOffset * 0.8) * 0.85 +
+                   Math.sin(param * 1.35 + t * 0.45) * 0.45) * ampBoost;
+        const z = Math.sin(param * 0.65 + strandOffset * 1.3) * 1.15 +
+                  Math.cos(param * 1.05) * 0.35 + 3.4;
+
+        const scale = fov / (z + 2.2);
+        const sx = cx + x * scale;
+        const sy = cy + y * scale;
+        const depth = Math.max(0.1, Math.min(1.0, 1.0 - (z - 2.0) / 3.0));
+
+        nodes.push({ x: sx, y: sy, z, scale, depth, u });
       }
 
-      // --- WebGL Render Path ---
-      if (this.gl && this.ribbonProgram && this.particleProgram) {
-        const gl = this.gl;
+      if (nodes.length < 2) continue;
 
-        this.updateRibbons(dt);
-        this.updateParticles(dt);
+      // Create flowing linear gradient along ribbon length
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      const grad = ctx.createLinearGradient(first.x, first.y, last.x, last.y);
+      const ribbonAlpha = 0.65 + this.energy * 0.35;
+      grad.addColorStop(0.0, `rgba(${c1[0]}, ${c1[1]}, ${c1[2]}, ${(0.7 * ribbonAlpha).toFixed(2)})`);
+      grad.addColorStop(0.5, `rgba(${c2[0]}, ${c2[1]}, ${c2[2]}, ${(0.9 * ribbonAlpha).toFixed(2)})`);
+      grad.addColorStop(1.0, `rgba(${c1[0]}, ${c1[1]}, ${c1[2]}, ${(0.7 * ribbonAlpha).toFixed(2)})`);
 
-        gl.clearColor(0.039, 0.039, 0.102, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-
-        // --- Draw Ribbons ---
-        gl.useProgram(this.ribbonProgram);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.ribbonBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, this.ribbonArray, gl.DYNAMIC_DRAW);
-
-        const r = this.rLocs;
-        if (r.uRes) gl.uniform2f(r.uRes, this.canvas.width, this.canvas.height);
-        if (r.uCol1) gl.uniform3fv(r.uCol1, this.currentColor1);
-        if (r.uCol2) gl.uniform3fv(r.uCol2, this.currentColor2);
-        if (r.uEnergy) gl.uniform1f(r.uEnergy, this.energy);
-
-        if (r.aPos >= 0) {
-          gl.enableVertexAttribArray(r.aPos);
-          gl.vertexAttribPointer(r.aPos, 3, gl.FLOAT, false, 20, 0);
-        }
-        if (r.aCoord >= 0) {
-          gl.enableVertexAttribArray(r.aCoord);
-          gl.vertexAttribPointer(r.aCoord, 2, gl.FLOAT, false, 20, 12);
-        }
-
-        const vertsPerRibbon = this.ribbonSegments * 2;
-        for (let idx = 0; idx < this.numRibbons; idx++) {
-          gl.drawArrays(gl.TRIANGLE_STRIP, idx * vertsPerRibbon, vertsPerRibbon);
-        }
-
-        // Cleanly disable ribbon attributes
-        if (r.aPos >= 0) gl.disableVertexAttribArray(r.aPos);
-        if (r.aCoord >= 0) gl.disableVertexAttribArray(r.aCoord);
-
-        // --- Draw Particles ---
-        gl.useProgram(this.particleProgram);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.particleBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, this.particleRenderData, gl.DYNAMIC_DRAW);
-
-        const p = this.pLocs;
-        if (p.uRes) gl.uniform2f(p.uRes, this.canvas.width, this.canvas.height);
-        if (p.uCol1) gl.uniform3fv(p.uCol1, this.currentColor1);
-        if (p.uCol2) gl.uniform3fv(p.uCol2, this.currentColor2);
-        if (p.uEnergy) gl.uniform1f(p.uEnergy, this.energy);
-
-        if (p.aPos >= 0) {
-          gl.enableVertexAttribArray(p.aPos);
-          gl.vertexAttribPointer(p.aPos, 3, gl.FLOAT, false, 20, 0);
-        }
-        if (p.aPhase >= 0) {
-          gl.enableVertexAttribArray(p.aPhase);
-          gl.vertexAttribPointer(p.aPhase, 1, gl.FLOAT, false, 20, 12);
-        }
-        if (p.aSize >= 0) {
-          gl.enableVertexAttribArray(p.aSize);
-          gl.vertexAttribPointer(p.aSize, 1, gl.FLOAT, false, 20, 16);
-        }
-
-        gl.drawArrays(gl.POINTS, 0, this.numParticles);
-
-        // Cleanly disable particle attributes
-        if (p.aPos >= 0) gl.disableVertexAttribArray(p.aPos);
-        if (p.aPhase >= 0) gl.disableVertexAttribArray(p.aPhase);
-        if (p.aSize >= 0) gl.disableVertexAttribArray(p.aSize);
-      } 
-      // --- 2D Canvas Fallback ---
-      else if (this.ctx2d) {
-        const ctx = this.ctx2d;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
-
-        ctx.fillStyle = '#0a0a1a';
-        ctx.fillRect(0, 0, w, h);
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-
-        const colStr = `rgb(${Math.floor(this.currentColor1[0]*255)}, ${Math.floor(this.currentColor1[1]*255)}, ${Math.floor(this.currentColor1[2]*255)})`;
-        ctx.fillStyle = colStr;
-
-        for (let pt of this.particles2D) {
-          pt.x += pt.vx * (1.0 + this.energy * 2.0);
-          pt.y += pt.vy * (1.0 + this.energy * 2.0);
-          if (pt.x < 0) pt.x = w;
-          if (pt.x > w) pt.x = 0;
-          if (pt.y < 0) pt.y = h;
-          if (pt.y > h) pt.y = 0;
-
-          ctx.beginPath();
-          ctx.arc(pt.x, pt.y, pt.r * (1.0 + this.energy * 0.5), 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
+      // Pass A: Outer Neon Glow Halo
+      ctx.beginPath();
+      ctx.moveTo(nodes[0].x, nodes[0].y);
+      for (let s = 1; s < nodes.length; s++) {
+        const xc = (nodes[s - 1].x + nodes[s].x) * 0.5;
+        const yc = (nodes[s - 1].y + nodes[s].y) * 0.5;
+        ctx.quadraticCurveTo(nodes[s - 1].x, nodes[s - 1].y, xc, yc);
       }
-    } catch (err) {
-      console.error('[Toot Visualizer] Render loop error:', err);
+      ctx.lineTo(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y);
+      ctx.lineWidth = 14 + this.energy * 10;
+      ctx.strokeStyle = `rgba(${c2[0]}, ${c2[1]}, ${c2[2]}, ${(0.22 * ribbonAlpha).toFixed(2)})`;
+      ctx.stroke();
+
+      // Pass B: Main Radiant Ribbon Body
+      ctx.beginPath();
+      ctx.moveTo(nodes[0].x, nodes[0].y);
+      for (let s = 1; s < nodes.length; s++) {
+        const xc = (nodes[s - 1].x + nodes[s].x) * 0.5;
+        const yc = (nodes[s - 1].y + nodes[s].y) * 0.5;
+        ctx.quadraticCurveTo(nodes[s - 1].x, nodes[s - 1].y, xc, yc);
+      }
+      ctx.lineTo(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y);
+      ctx.lineWidth = 5 + this.energy * 4;
+      ctx.strokeStyle = grad;
+      ctx.stroke();
+
+      // Pass C: White-Hot Laser Spine
+      ctx.beginPath();
+      ctx.moveTo(nodes[0].x, nodes[0].y);
+      for (let s = 1; s < nodes.length; s++) {
+        const xc = (nodes[s - 1].x + nodes[s].x) * 0.5;
+        const yc = (nodes[s - 1].y + nodes[s].y) * 0.5;
+        ctx.quadraticCurveTo(nodes[s - 1].x, nodes[s - 1].y, xc, yc);
+      }
+      ctx.lineTo(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y);
+      ctx.lineWidth = 1.8 + this.energy * 1.2;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.85 * ribbonAlpha).toFixed(2)})`;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    this.frameCount++;
+    if (this.frameCount === 1 || this.frameCount === 60) {
+      console.log(`[Toot Visualizer] Active & rendering (frame ${this.frameCount}, energy: ${this.energy.toFixed(2)})`);
     }
   }
 
   destroy() {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
     window.removeEventListener('resize', this.resize);
   }

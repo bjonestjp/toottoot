@@ -1,8 +1,8 @@
-import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=11';
-import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=11';
-import { generateRoomCode } from './room-code.js?v=11';
-import { HostTransport } from './transport.js?v=11';
-import { initVisualizer, triggerNotePulse, setVisualizerMode } from './visualizer.js?v=11';
+import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=12';
+import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=12';
+import { generateRoomCode } from './room-code.js?v=12';
+import { HostTransport } from './transport.js?v=12';
+import { initVisualizer, triggerNotePulse, setVisualizerMode } from './visualizer.js?v=12';
 
 // DOM Elements
 const views = {

@@ -13,6 +13,11 @@ body {
     width: 100vw;
 }
 
+body::before,
+body::after {
+    display: none !important;
+}
+
 #bg-visualizer {
     position: fixed;
     top: 0;
