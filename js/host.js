@@ -1,8 +1,8 @@
-import { initAudio, playNote, startNote, stopNote, playSuccess, playFail } from './audio.js?v=13';
-import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=13';
-import { generateRoomCode } from './room-code.js?v=13';
-import { HostTransport } from './transport.js?v=13';
-import { initVisualizer, triggerNotePulse, setVisualizerMode } from './visualizer.js?v=13';
+import { initAudio, playNote, startNote, stopNote, playSuccess, playFail, startBeat, stopBeat, setBeatEnabled, isBeatEnabled } from './audio.js?v=14';
+import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=14';
+import { generateRoomCode } from './room-code.js?v=14';
+import { HostTransport } from './transport.js?v=14';
+import { initVisualizer, triggerNotePulse, triggerBeatTick, setVisualizerMode } from './visualizer.js?v=14';
 
 // DOM Elements
 const views = {
@@ -20,6 +20,11 @@ const elPlayerList = document.getElementById('player-list');
 const elPlayerCount = document.getElementById('player-count');
 const elDifficultyChips = document.getElementById('difficulty-chips');
 const elDifficultyPreview = document.getElementById('difficulty-preview');
+const btnToggleBeatLobby = document.getElementById('btn-toggle-beat-lobby');
+const elBeatStatusLobby = document.getElementById('beat-status-lobby');
+const btnToggleBeatPlaying = document.getElementById('btn-toggle-beat-playing');
+const elBeatStatusPlaying = document.getElementById('beat-status-playing');
+const elBeatPulseDot = document.getElementById('beat-pulse-dot');
 const btnStartGame = document.getElementById('btn-start-game');
 const elCountdownTitle = document.getElementById('countdown-title');
 const elCountdownNumber = document.getElementById('countdown-number');
@@ -57,6 +62,68 @@ let startTime = null;
 let timerInterval = null;
 let activeHostNoteHandle = null; // sustained note on host speaker
 
+// Rhythm Beat State
+let beatSettingEnabled = localStorage.getItem('toot_beat_enabled') !== 'false'; // default true
+let beatPulseTimeout = null;
+
+function updateBeatUI() {
+    const statusText = beatSettingEnabled ? 'on' : 'off';
+    if (btnToggleBeatLobby) {
+        btnToggleBeatLobby.classList.toggle('active', beatSettingEnabled);
+    }
+    if (elBeatStatusLobby) {
+        elBeatStatusLobby.textContent = statusText;
+    }
+    if (btnToggleBeatPlaying) {
+        btnToggleBeatPlaying.classList.toggle('active', beatSettingEnabled);
+    }
+    if (elBeatStatusPlaying) {
+        elBeatStatusPlaying.textContent = statusText;
+    }
+}
+
+function toggleBeatSetting() {
+    beatSettingEnabled = !beatSettingEnabled;
+    localStorage.setItem('toot_beat_enabled', beatSettingEnabled ? 'true' : 'false');
+    setBeatEnabled(beatSettingEnabled);
+    updateBeatUI();
+
+    if (beatSettingEnabled) {
+        if (gameState === 'playing' && currentSong) {
+            startActiveSongBeat();
+        }
+    } else {
+        stopBeat();
+    }
+}
+
+function startActiveSongBeat() {
+    if (!beatSettingEnabled || !currentSong || gameState !== 'playing') {
+        stopBeat();
+        return;
+    }
+    const bpm = currentSong.bpm || 115;
+    const timeSig = currentSong.timeSignature || 4;
+    startBeat(bpm, timeSig, handleBeatTick);
+}
+
+function handleBeatTick(isDownbeat, beatNum) {
+    if (elBeatPulseDot && beatSettingEnabled) {
+        elBeatPulseDot.classList.remove('pulse', 'downbeat');
+        void elBeatPulseDot.offsetWidth;
+        elBeatPulseDot.classList.add(isDownbeat ? 'downbeat' : 'pulse');
+
+        clearTimeout(beatPulseTimeout);
+        beatPulseTimeout = setTimeout(() => {
+            if (elBeatPulseDot) {
+                elBeatPulseDot.classList.remove('pulse', 'downbeat');
+            }
+        }, 110);
+    }
+
+    triggerBeatTick(isDownbeat);
+}
+
 // Initialize
 function init() {
     roomCode = generateRoomCode();
@@ -77,6 +144,17 @@ function init() {
     }
 
     renderDifficultySelector();
+
+    // Beat Toggle Setup
+    setBeatEnabled(beatSettingEnabled);
+    updateBeatUI();
+
+    if (btnToggleBeatLobby) {
+        btnToggleBeatLobby.addEventListener('click', toggleBeatSetting);
+    }
+    if (btnToggleBeatPlaying) {
+        btnToggleBeatPlaying.addEventListener('click', toggleBeatSetting);
+    }
 
     // Connect Host WebSocket Transport
     if (transport) transport.destroy();
@@ -311,6 +389,7 @@ function triggerCorrectPulse() {
 function startPerformanceCountdown() {
     if (subMode !== 'practice') return;
     
+    stopBeat();
     if (activeHostNoteHandle) {
         stopNote(activeHostNoteHandle);
         activeHostNoteHandle = null;
@@ -340,6 +419,7 @@ function startPerformanceCountdown() {
             subMode = 'performance';
             setPerformanceUI();
             switchView('playing');
+            startActiveSongBeat();
             startTimer();
             broadcast({ type: 'performance-started' });
         }
@@ -357,6 +437,7 @@ function startGame(optionalSong = null) {
     progress = 0;
     failCount = 0;
     subMode = 'practice';
+    stopBeat();
     if (activeHostNoteHandle) {
         stopNote(activeHostNoteHandle);
         activeHostNoteHandle = null;
@@ -401,6 +482,7 @@ function startGame(optionalSong = null) {
     
     // Enter Rehearsal Mode immediately
     switchView('playing');
+    startActiveSongBeat();
 }
 
 function handleNoteDown(playerId, note) {
@@ -495,6 +577,7 @@ function handleNoteUp(playerId, note) {
 }
 
 function handleFail() {
+    stopBeat();
     if (activeHostNoteHandle) {
         stopNote(activeHostNoteHandle);
         activeHostNoteHandle = null;
@@ -512,10 +595,12 @@ function handleFail() {
         updateProgressUI();
         setPerformanceUI();
         switchView('playing');
+        startActiveSongBeat();
     }, 2000);
 }
 
 function handleWin() {
+    stopBeat();
     if (activeHostNoteHandle) {
         stopNote(activeHostNoteHandle);
         activeHostNoteHandle = null;
@@ -568,7 +653,7 @@ function renderWinProgressionActions() {
         const nextLevel = selectedDifficulty + 1;
         const nextDiff = DIFFICULTY_LEVELS.find(d => d.level === nextLevel);
         const btnLevelUp = document.createElement('button');
-        btnLevelUp.className = 'btn-primary btn-level-up';
+        btnLevelUp.className = 'btn-primary btn-levelup';
         btnLevelUp.textContent = `level up: ${nextDiff.name} 🚀`;
         btnLevelUp.addEventListener('click', () => {
             selectedDifficulty = nextLevel;
@@ -587,6 +672,7 @@ function renderWinProgressionActions() {
 }
 
 function resetToLobby() {
+    stopBeat();
     if (activeHostNoteHandle) {
         stopNote(activeHostNoteHandle);
         activeHostNoteHandle = null;

@@ -26,6 +26,11 @@ export function initAudio() {
   masterGain = audioCtx.createGain();
   masterGain.gain.value = 0.6;
 
+  // Dedicated Beat Gain
+  beatGain = audioCtx.createGain();
+  beatGain.gain.value = 0.35;
+  beatGain.connect(masterGain);
+
   // Compressor for smooth dynamics and no clipping
   compressor = audioCtx.createDynamicsCompressor();
   compressor.threshold.value = -14;
@@ -246,3 +251,188 @@ export function noteToFrequency(noteName) {
   
   return frequency;
 }
+
+// -------------------------------------------------------------
+// Web Audio Rhythm Engine (Lookahead Scheduler)
+// -------------------------------------------------------------
+
+let beatSchedulerTimer = null;
+let isBeatRunning = false;
+let beatEnabled = true;
+let currentBpm = 115;
+let currentTimeSignature = 4;
+let nextBeatTime = 0;
+let currentBeatNumber = 0;
+let beatCallback = null;
+
+const LOOKAHEAD_INTERVAL_MS = 25; // run scheduler every 25ms
+const SCHEDULE_AHEAD_TIME_SEC = 0.1; // schedule 100ms in advance
+
+/**
+ * Play a synthesized percussion beat hit.
+ * @param {number} time - AudioContext exact target time
+ * @param {boolean} isDownbeat - true for beat 1, false for beats 2, 3, 4
+ */
+function playBeatSound(time, isDownbeat) {
+  if (!audioCtx || !beatGain) return;
+
+  if (isDownbeat) {
+    // Downbeat: punchy low-frequency resonance + transient click
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(160, time);
+    osc.frequency.exponentialRampToValueAtTime(42, time + 0.08);
+
+    gain.gain.setValueAtTime(0.75, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+
+    osc.connect(gain);
+    gain.connect(beatGain);
+
+    osc.start(time);
+    osc.stop(time + 0.14);
+
+    // High transient click
+    const click = audioCtx.createOscillator();
+    const clickGain = audioCtx.createGain();
+    click.type = 'triangle';
+    click.frequency.setValueAtTime(900, time);
+    click.frequency.exponentialRampToValueAtTime(200, time + 0.02);
+
+    clickGain.gain.setValueAtTime(0.35, time);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
+
+    click.connect(clickGain);
+    clickGain.connect(beatGain);
+
+    click.start(time);
+    click.stop(time + 0.03);
+
+    setTimeout(() => {
+      try {
+        osc.disconnect();
+        gain.disconnect();
+        click.disconnect();
+        clickGain.disconnect();
+      } catch (e) {}
+    }, Math.max(0, (time - audioCtx.currentTime + 0.2) * 1000 + 50));
+  } else {
+    // Offbeat: soft, crisp wooden click
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, time);
+    osc.frequency.exponentialRampToValueAtTime(320, time + 0.035);
+
+    gain.gain.setValueAtTime(0.40, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
+
+    osc.connect(gain);
+    gain.connect(beatGain);
+
+    osc.start(time);
+    osc.stop(time + 0.05);
+
+    setTimeout(() => {
+      try {
+        osc.disconnect();
+        gain.disconnect();
+      } catch (e) {}
+    }, Math.max(0, (time - audioCtx.currentTime + 0.1) * 1000 + 50));
+  }
+}
+
+/**
+ * Lookahead scheduler loop.
+ */
+function beatScheduler() {
+  if (!audioCtx || !isBeatRunning) return;
+
+  while (nextBeatTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME_SEC) {
+    const isDownbeat = (currentBeatNumber === 0);
+    const beatNum = currentBeatNumber;
+    const scheduledTime = nextBeatTime;
+
+    playBeatSound(scheduledTime, isDownbeat);
+
+    if (beatCallback) {
+      const delayMs = Math.max(0, (scheduledTime - audioCtx.currentTime) * 1000);
+      setTimeout(() => {
+        if (isBeatRunning && beatCallback) {
+          beatCallback(isDownbeat, beatNum);
+        }
+      }, delayMs);
+    }
+
+    nextBeatTime += 60.0 / currentBpm;
+    currentBeatNumber = (currentBeatNumber + 1) % currentTimeSignature;
+  }
+}
+
+/**
+ * Start the backing rhythm beat.
+ * @param {number} [bpm=115] - Tempo in beats per minute
+ * @param {number} [timeSignature=4] - Meter (e.g. 4 for 4/4, 3 for 3/4)
+ * @param {Function} [onBeat] - Callback (isDownbeat, beatNumber)
+ */
+export function startBeat(bpm = 115, timeSignature = 4, onBeat = null) {
+  if (!audioCtx) initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  stopBeat();
+
+  currentBpm = bpm || 115;
+  currentTimeSignature = timeSignature || 4;
+  beatCallback = onBeat;
+  currentBeatNumber = 0;
+
+  if (!beatEnabled) return;
+
+  isBeatRunning = true;
+  nextBeatTime = audioCtx.currentTime + 0.06;
+  beatSchedulerTimer = setInterval(beatScheduler, LOOKAHEAD_INTERVAL_MS);
+}
+
+/**
+ * Stop the backing rhythm beat immediately.
+ */
+export function stopBeat() {
+  isBeatRunning = false;
+  if (beatSchedulerTimer) {
+    clearInterval(beatSchedulerTimer);
+    beatSchedulerTimer = null;
+  }
+}
+
+/**
+ * Enable or disable the backing rhythm beat.
+ * @param {boolean} enabled
+ */
+export function setBeatEnabled(enabled) {
+  beatEnabled = !!enabled;
+  if (!beatEnabled) {
+    stopBeat();
+  }
+}
+
+/**
+ * Check if the backing rhythm beat is enabled.
+ * @returns {boolean}
+ */
+export function isBeatEnabled() {
+  return beatEnabled;
+}
+
+/**
+ * Adjust the backing rhythm beat volume.
+ * @param {number} vol - 0.0 to 1.0 (default 0.35)
+ */
+export function setBeatVolume(vol) {
+  if (beatGain) {
+    beatGain.gain.value = Math.max(0, Math.min(1, vol));
+  }
+}
+

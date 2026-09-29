@@ -8,10 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Special+Gothic+Condensed+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/common.css">
-    <link rel="stylesheet" href="css/host.css?v=13">
+    <link rel="stylesheet" href="css/host.css?v=14">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <script type="module" src="js/host.js?v=13" defer></script>
+    <script type="module" src="js/host.js?v=14" defer></script>
 </head>
 <body>
     <canvas id="bg-visualizer"></canvas>
@@ -34,6 +34,14 @@
                         <div class="section-title">difficulty level</div>
                         <div class="difficulty-chips" id="difficulty-chips"></div>
                         <div class="difficulty-preview" id="difficulty-preview"></div>
+                    </div>
+
+                    <div class="lobby-settings-section">
+                        <button id="btn-toggle-beat-lobby" class="btn-beat-toggle active" title="toggle backing rhythm beat">
+                            <span class="beat-btn-icon">🥁</span>
+                            <span class="beat-btn-label">backing beat:</span>
+                            <span id="beat-status-lobby" class="beat-btn-status">on</span>
+                        </button>
                     </div>
                 </div>
 
@@ -66,6 +74,12 @@
                 <div id="conductor-display" class="conductor-display">
                     🎼 conductor & note 1: <strong id="conductor-name">...</strong>
                 </div>
+                <button id="btn-toggle-beat-playing" class="beat-toggle-pill active" title="toggle backing rhythm beat">
+                    <span class="beat-pill-icon">🥁</span>
+                    <span class="beat-pill-label">beat:</span>
+                    <span id="beat-status-playing" class="beat-pill-status">on</span>
+                    <span id="beat-pulse-dot" class="beat-pulse-dot"></span>
+                </button>
             </div>
 
             <div class="song-header">

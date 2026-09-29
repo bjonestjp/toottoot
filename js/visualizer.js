@@ -382,6 +382,11 @@ class Visualizer {
     }
   }
 
+  triggerBeatTick(isDownbeat = false) {
+    const boost = isDownbeat ? 0.14 : 0.04;
+    this.energy = Math.min(2.0, this.energy + boost);
+  }
+
   destroy() {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
@@ -405,6 +410,12 @@ export function initVisualizer(canvasElement) {
 export function triggerNotePulse(noteName) {
   if (activeVisualizer) {
     activeVisualizer.triggerNotePulse(noteName);
+  }
+}
+
+export function triggerBeatTick(isDownbeat = false) {
+  if (activeVisualizer) {
+    activeVisualizer.triggerBeatTick(isDownbeat);
   }
 }
 

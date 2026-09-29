@@ -196,6 +196,51 @@ body::after {
     text-transform: lowercase;
 }
 
+.lobby-settings-section {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.btn-beat-toggle {
+    background: rgba(30, 41, 59, 0.7);
+    border: 2px solid #334155;
+    border-radius: 30px;
+    padding: 8px 22px;
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    color: #94a3b8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+    text-transform: lowercase;
+    user-select: none;
+}
+
+.btn-beat-toggle:hover {
+    border-color: #64748b;
+    color: #f1f5f9;
+    transform: translateY(-1px);
+}
+
+.btn-beat-toggle.active {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: #10b981;
+    color: #6ee7b7;
+    box-shadow: 0 0 18px rgba(16, 185, 129, 0.25);
+}
+
+.btn-beat-toggle.active .beat-btn-status {
+    color: #ffffff;
+}
+
+.btn-beat-toggle:not(.active) .beat-btn-status {
+    color: #64748b;
+}
+
 /* RIGHT COLUMN */
 .players-section {
     display: flex;
@@ -364,6 +409,69 @@ body::after {
 
 .conductor-display strong {
     color: #ffffff;
+}
+
+.beat-toggle-pill {
+    background: rgba(30, 41, 59, 0.85);
+    border: 2px solid #334155;
+    border-radius: 40px;
+    padding: 6px 22px;
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: #94a3b8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+    text-transform: lowercase;
+    user-select: none;
+}
+
+.beat-toggle-pill:hover {
+    border-color: #64748b;
+    color: #f1f5f9;
+}
+
+.beat-toggle-pill.active {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: #10b981;
+    color: #6ee7b7;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.beat-toggle-pill.active .beat-pill-status {
+    color: #ffffff;
+}
+
+.beat-toggle-pill:not(.active) .beat-pill-status {
+    color: #64748b;
+}
+
+.beat-pulse-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #475569;
+    display: inline-block;
+    transition: transform 0.08s ease, background-color 0.12s ease;
+}
+
+.beat-toggle-pill.active .beat-pulse-dot {
+    background-color: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+.beat-pulse-dot.pulse {
+    transform: scale(1.8);
+    background-color: #ffffff !important;
+    box-shadow: 0 0 16px #34d399, 0 0 24px #10b981 !important;
+}
+
+.beat-pulse-dot.downbeat {
+    transform: scale(2.2);
+    background-color: #fef08a !important;
+    box-shadow: 0 0 18px #fef08a, 0 0 30px #eab308 !important;
 }
 
 .rehearsal-prompt {

@@ -5,6 +5,8 @@ export const songs = [
     id: 'hot-cross-buns',
     name: 'Hot Cross Buns',
     difficulty: 1,
+    bpm: 105,
+    timeSignature: 4,
     notes: ['E4', 'D4', 'C4', 'E4', 'D4', 'C4', 'C4', 'C4', 'C4', 'C4', 'D4', 'D4', 'D4', 'D4', 'E4', 'D4', 'C4'],
     emoji: '⭐'
   },
@@ -12,6 +14,8 @@ export const songs = [
     id: 'mary-had-a-little-lamb',
     name: 'Mary Had a Little Lamb',
     difficulty: 1,
+    bpm: 115,
+    timeSignature: 4,
     notes: ['E4', 'D4', 'C4', 'D4', 'E4', 'E4', 'E4', 'D4', 'D4', 'D4', 'E4', 'G4', 'G4', 'E4', 'D4', 'C4', 'D4', 'E4', 'E4', 'E4', 'E4', 'D4', 'D4', 'E4', 'D4', 'C4'],
     emoji: '🐑'
   },
@@ -19,6 +23,8 @@ export const songs = [
     id: 'jingle-bells',
     name: 'Jingle Bells',
     difficulty: 1,
+    bpm: 125,
+    timeSignature: 4,
     notes: ['E4', 'E4', 'E4', 'E4', 'E4', 'E4', 'E4', 'G4', 'C4', 'D4', 'E4', 'F4', 'F4', 'F4', 'F4', 'F4', 'E4', 'E4', 'E4', 'E4', 'D4', 'D4', 'E4', 'D4', 'G4'],
     emoji: '🔔'
   },
@@ -26,6 +32,8 @@ export const songs = [
     id: 'frere-jacques',
     name: 'Frère Jacques',
     difficulty: 2,
+    bpm: 110,
+    timeSignature: 4,
     notes: ['C4', 'D4', 'E4', 'C4', 'C4', 'D4', 'E4', 'C4', 'E4', 'F4', 'G4', 'E4', 'F4', 'G4', 'G4', 'A4', 'G4', 'F4', 'E4', 'C4', 'G4', 'A4', 'G4', 'F4', 'E4', 'C4', 'C4', 'G3', 'C4', 'C4', 'G3', 'C4'],
     emoji: '🔔'
   },
@@ -33,6 +41,8 @@ export const songs = [
     id: 'twinkle',
     name: 'Twinkle Twinkle Little Star',
     difficulty: 2,
+    bpm: 105,
+    timeSignature: 4,
     notes: ['C4', 'C4', 'G4', 'G4', 'A4', 'A4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'D4', 'C4', 'G4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'G4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'C4', 'C4', 'G4', 'G4', 'A4', 'A4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'D4', 'C4'],
     emoji: '⭐'
   },
@@ -40,6 +50,8 @@ export const songs = [
     id: 'happy-birthday',
     name: 'Happy Birthday',
     difficulty: 2,
+    bpm: 100,
+    timeSignature: 3,
     notes: ['G3', 'G3', 'A3', 'G3', 'C4', 'B3', 'G3', 'G3', 'A3', 'G3', 'D4', 'C4', 'G3', 'G3', 'G4', 'E4', 'C4', 'B3', 'A3', 'F4', 'F4', 'E4', 'C4', 'D4', 'C4'],
     emoji: '🎂'
   },
@@ -47,6 +59,8 @@ export const songs = [
     id: 'ode-to-joy',
     name: 'Ode to Joy',
     difficulty: 3,
+    bpm: 115,
+    timeSignature: 4,
     notes: ['E4', 'E4', 'F4', 'G4', 'G4', 'F4', 'E4', 'D4', 'C4', 'C4', 'D4', 'E4', 'E4', 'D4', 'D4', 'E4', 'E4', 'F4', 'G4', 'G4', 'F4', 'E4', 'D4', 'C4', 'C4', 'D4', 'E4', 'D4', 'C4', 'C4'],
     emoji: '🎵'
   },
@@ -54,6 +68,8 @@ export const songs = [
     id: 'saints-go-marching',
     name: 'When the Saints Go Marching In',
     difficulty: 3,
+    bpm: 128,
+    timeSignature: 4,
     notes: ['C4', 'E4', 'F4', 'G4', 'C4', 'E4', 'F4', 'G4', 'C4', 'E4', 'F4', 'G4', 'E4', 'C4', 'E4', 'D4', 'E4', 'E4', 'D4', 'C4', 'C4', 'E4', 'G4', 'G4', 'F4', 'E4', 'F4', 'G4', 'E4', 'C4', 'D4', 'C4'],
     emoji: '🎺'
   },
@@ -61,6 +77,8 @@ export const songs = [
     id: 'beethoven-5th',
     name: "Beethoven's 5th",
     difficulty: 3,
+    bpm: 108,
+    timeSignature: 4,
     notes: ['G4', 'G4', 'G4', 'D#4', 'F4', 'F4', 'F4', 'D4', 'G4', 'G4', 'G4', 'D#4', 'F4', 'F4', 'F4', 'D4', 'D#4', 'D#4', 'D#4', 'C4'],
     emoji: '⚡'
   },
@@ -68,6 +86,8 @@ export const songs = [
     id: 'amazing-grace',
     name: 'Amazing Grace',
     difficulty: 4,
+    bpm: 85,
+    timeSignature: 3,
     notes: ['G3', 'C4', 'E4', 'C4', 'E4', 'D4', 'C4', 'A3', 'G3', 'G3', 'C4', 'E4', 'C4', 'E4', 'D4', 'G4', 'E4', 'C4', 'E4', 'C4', 'A3', 'G3', 'A3', 'C4'],
     emoji: '🙏'
   },
@@ -75,6 +95,8 @@ export const songs = [
     id: 'auld-lang-syne',
     name: 'Auld Lang Syne',
     difficulty: 4,
+    bpm: 90,
+    timeSignature: 4,
     notes: ['G3', 'C4', 'C4', 'C4', 'E4', 'D4', 'C4', 'D4', 'E4', 'C4', 'C4', 'E4', 'G4', 'A4', 'A4', 'G4', 'E4', 'E4', 'C4', 'D4', 'C4', 'D4', 'E4', 'C4', 'A3', 'A3', 'G3', 'C4'],
     emoji: '🥂'
   },
@@ -82,6 +104,8 @@ export const songs = [
     id: 'tetris',
     name: 'Tetris (Korobeiniki)',
     difficulty: 4,
+    bpm: 135,
+    timeSignature: 4,
     notes: ['E4', 'B3', 'C4', 'D4', 'C4', 'B3', 'A3', 'A3', 'C4', 'E4', 'D4', 'C4', 'B3', 'C4', 'D4', 'E4', 'C4', 'A3', 'A3', 'D4', 'F4', 'A4', 'G4', 'F4', 'E4', 'C4', 'E4', 'D4', 'C4', 'B3', 'B3', 'C4', 'D4', 'E4', 'C4', 'A3', 'A3'],
     emoji: '🕹️'
   },
@@ -89,6 +113,8 @@ export const songs = [
     id: 'greensleeves',
     name: 'Greensleeves',
     difficulty: 5,
+    bpm: 105,
+    timeSignature: 3,
     notes: ['A3', 'C4', 'D4', 'E4', 'F4', 'E4', 'D4', 'B3', 'G3', 'A3', 'B3', 'C4', 'A3', 'A3', 'G#3', 'A3', 'B3', 'G#3', 'E3', 'A3', 'C4', 'D4', 'E4', 'F4', 'E4', 'D4', 'B3', 'G3', 'A3', 'B3', 'C4', 'B3', 'A3', 'G#3', 'A3', 'B3', 'A3'],
     emoji: '🏰'
   },
@@ -96,6 +122,8 @@ export const songs = [
     id: 'mountain-king',
     name: 'Mountain King',
     difficulty: 5,
+    bpm: 125,
+    timeSignature: 4,
     notes: ['B3', 'C#4', 'D4', 'E4', 'F#4', 'D4', 'F#4', 'F4', 'C4', 'F4', 'E4', 'C4', 'E4', 'B3', 'C#4', 'D4', 'E4', 'F#4', 'D4', 'F#4', 'B4', 'F#4', 'D4', 'C#4', 'B3'],
     emoji: '🏔️'
   }
