@@ -5,6 +5,7 @@
 
 let audioCtx;
 let masterGain;
+let beatGain;
 let compressor;
 
 /**
