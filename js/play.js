@@ -1,5 +1,6 @@
-import { initAudio, playNote, startNote, stopNote, playFail } from './audio.js?v=7';
-import { PlayerTransport } from './transport.js?v=7';
+import { initAudio, playNote, startNote, stopNote, playFail } from './audio.js?v=9';
+import { PlayerTransport } from './transport.js?v=9';
+import { SEQUENCER_NOTES, encodeSongToCode, decodeSongFromCode, buildCustomSong } from './songs.js?v=9';
 
 // State
 let playerName = '';
@@ -15,12 +16,21 @@ let currentSongName = '';
 let currentSongEmoji = '🎵';
 let subMode = 'practice'; // practice | performance
 
+// Sequencer State
+let seqNotes = [];        // current sequence (note names + 'REST')
+let seqName = '';         // song name
+let seqBpm = 120;
+let seqTimeSig = 4;
+let isPreviewPlaying = false;
+let previewTimeouts = [];
+
 // DOM Elements
 const views = {
     join: document.getElementById('join-view'),
     waiting: document.getElementById('waiting-view'),
     playing: document.getElementById('playing-view'),
-    win: document.getElementById('win-view')
+    win: document.getElementById('win-view'),
+    sequencer: document.getElementById('sequencer-view')
 };
 
 const joinBtn = document.getElementById('join-btn');
@@ -65,9 +75,39 @@ function init() {
         });
     }
     
+    // Sequencer Listeners
+    if (btnCreateTune) {
+        btnCreateTune.addEventListener('click', () => {
+            switchView('sequencer');
+            buildSeqPalette();
+        });
+    }
+    if (btnSeqBack) {
+        btnSeqBack.addEventListener('click', () => {
+            stopPreview();
+            switchView('waiting');
+        });
+    }
+    if (seqBpmSlider) {
+        seqBpmSlider.addEventListener('input', (e) => {
+            seqBpm = parseInt(e.target.value, 10);
+            seqBpmVal.textContent = seqBpm;
+        });
+    }
+    if (btnSeqTimesig) {
+        btnSeqTimesig.addEventListener('click', () => {
+            seqTimeSig = seqTimeSig === 4 ? 3 : 4;
+            btnSeqTimesig.textContent = `${seqTimeSig}/4`;
+        });
+    }
+    if (btnSeqPreview) btnSeqPreview.addEventListener('click', previewSequence);
+    if (btnSeqSubmit) btnSeqSubmit.addEventListener('click', submitSong);
+    if (btnSeqSave) btnSeqSave.addEventListener('click', saveSongCode);
+    if (btnSeqLoad) btnSeqLoad.addEventListener('click', loadSongCode);
+
     // Prevent zooming and scrolling
     document.addEventListener('touchmove', (e) => {
-        if (e.target.tagName !== 'INPUT') e.preventDefault();
+        if (e.target.tagName !== 'INPUT' && !e.target.closest('#seq-strip')) e.preventDefault();
     }, { passive: false });
 }
 
@@ -182,6 +222,7 @@ function handleMessage(msg) {
             // Logged in successfully
             break;
         case 'assign-notes':
+            stopPreview(); // stop sequencer preview if playing
             assignedNotes = msg.notes || [];
             isConductor = !!msg.isConductor;
             startingNote = msg.startingNote || null;
@@ -428,3 +469,189 @@ function triggerFail() {
 
 // Start
 document.addEventListener('DOMContentLoaded', init);
+// Sequencer DOM Elements
+const btnCreateTune = document.getElementById('btn-create-tune');
+const btnSeqBack = document.getElementById('btn-seq-back');
+const seqNameInput = document.getElementById('seq-name');
+const seqBpmSlider = document.getElementById('seq-bpm-slider');
+const seqBpmVal = document.getElementById('seq-bpm-val');
+const btnSeqTimesig = document.getElementById('btn-seq-timesig');
+const seqStrip = document.getElementById('seq-strip');
+const seqPalette = document.getElementById('seq-palette');
+const btnSeqPreview = document.getElementById('btn-seq-preview');
+const btnSeqSubmit = document.getElementById('btn-seq-submit');
+const btnSeqSave = document.getElementById('btn-seq-save');
+const btnSeqLoad = document.getElementById('btn-seq-load');
+
+function stopPreview() {
+    isPreviewPlaying = false;
+    previewTimeouts.forEach(clearTimeout);
+    previewTimeouts = [];
+    document.querySelectorAll('.seq-chip').forEach(c => c.classList.remove('playing'));
+}
+
+function buildSeqPalette() {
+    if (seqPalette.children.length > 0) return; // already built
+    
+    const notesToBuild = [...SEQUENCER_NOTES, 'REST'];
+    notesToBuild.forEach(note => {
+        const btn = document.createElement('button');
+        btn.className = 'seq-palette-btn';
+        
+        if (note === 'REST') {
+            btn.classList.add('rest');
+            btn.textContent = '⏸';
+        } else {
+            const letter = note.replace(/[0-9]/g, '');
+            const octave = parseInt(note.replace(/[^0-9]/g, ''), 10) || 4;
+            let displayNote = letter;
+            
+            if (octave === 3) displayNote += '<sub>3</sub>';
+            if (octave === 5) displayNote += '<sub>5</sub>';
+            
+            btn.innerHTML = displayNote;
+            
+            const colorVar = `--note-${letter.toLowerCase().replace('#', 's')}${octave === 5 ? '5' : ''}`;
+            btn.style.backgroundColor = `var(${colorVar})`;
+        }
+        
+        btn.addEventListener('click', () => {
+            if (note !== 'REST') playNote(note, 0.2);
+            seqNotes.push(note);
+            renderSeqStrip();
+        });
+        
+        seqPalette.appendChild(btn);
+    });
+}
+
+function renderSeqStrip() {
+    seqStrip.innerHTML = '';
+    seqNotes.forEach((note, index) => {
+        const chip = document.createElement('div');
+        chip.className = 'seq-chip';
+        
+        if (note === 'REST') {
+            chip.classList.add('rest');
+            chip.textContent = '⏸';
+        } else {
+            const letter = note.replace(/[0-9]/g, '');
+            const octave = parseInt(note.replace(/[^0-9]/g, ''), 10) || 4;
+            let displayNote = letter;
+            
+            if (octave === 3) displayNote += '<sub>3</sub>';
+            if (octave === 5) displayNote += '<sub>5</sub>';
+            
+            chip.innerHTML = displayNote;
+            const colorVar = `--note-${letter.toLowerCase().replace('#', 's')}${octave === 5 ? '5' : ''}`;
+            chip.style.backgroundColor = `var(${colorVar})`;
+        }
+        
+        chip.addEventListener('click', () => {
+            seqNotes.splice(index, 1);
+            renderSeqStrip();
+        });
+        
+        seqStrip.appendChild(chip);
+    });
+    
+    seqStrip.scrollLeft = seqStrip.scrollWidth;
+}
+
+function previewSequence() {
+    if (isPreviewPlaying) {
+        stopPreview();
+        return;
+    }
+    
+    if (seqNotes.length === 0) return;
+    
+    isPreviewPlaying = true;
+    const msPerBeat = 60000 / seqBpm;
+    
+    let delay = 0;
+    seqNotes.forEach((note, index) => {
+        const timeout = setTimeout(() => {
+            if (!isPreviewPlaying) return;
+            
+            document.querySelectorAll('.seq-chip').forEach(c => c.classList.remove('playing'));
+            const chip = seqStrip.children[index];
+            if (chip) chip.classList.add('playing');
+            
+            if (note !== 'REST') {
+                playNote(note, msPerBeat / 1000 - 0.05);
+            }
+            
+            if (index === seqNotes.length - 1) {
+                setTimeout(stopPreview, msPerBeat);
+            }
+        }, delay);
+        
+        previewTimeouts.push(timeout);
+        delay += msPerBeat;
+    });
+}
+
+function submitSong() {
+    if (gameState !== 'waiting') return;
+    if (seqNotes.length === 0) {
+        alert('add some notes first!');
+        return;
+    }
+    
+    seqName = seqNameInput.value || 'my tune';
+    
+    const song = buildCustomSong(seqName, seqBpm, seqTimeSig, seqNotes, playerName);
+    
+    if (transport) {
+        transport.sendToHost({ 
+            type: 'custom-song', 
+            song: {
+                name: seqName,
+                bpm: seqBpm,
+                timeSignature: seqTimeSig,
+                notes: seqNotes,
+                creator: playerName
+            }
+        });
+    }
+    
+    stopPreview();
+    switchView('waiting');
+}
+
+function saveSongCode() {
+    if (seqNotes.length === 0) return;
+    seqName = seqNameInput.value || 'my tune';
+    const code = encodeSongToCode(seqName, seqBpm, seqTimeSig, seqNotes);
+    
+    navigator.clipboard.writeText(code).then(() => {
+        alert(`copied code: ${code}`);
+    }).catch(() => {
+        prompt('copy this code:', code);
+    });
+}
+
+function loadSongCode() {
+    const code = prompt('paste song code:');
+    if (!code) return;
+    
+    const song = decodeSongFromCode(code);
+    if (!song) {
+        alert('invalid code!');
+        return;
+    }
+    
+    seqNameInput.value = song.name;
+    seqName = song.name;
+    
+    seqBpmSlider.value = song.bpm;
+    seqBpm = song.bpm;
+    seqBpmVal.textContent = seqBpm;
+    
+    seqTimeSig = song.timeSignature;
+    btnSeqTimesig.textContent = `${seqTimeSig}/4`;
+    
+    seqNotes = song.notes;
+    renderSeqStrip();
+}

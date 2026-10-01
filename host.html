@@ -8,10 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Special+Gothic+Condensed+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/common.css">
-    <link rel="stylesheet" href="css/host.css?v=15">
+    <link rel="stylesheet" href="css/host.css?v=16">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <script type="module" src="js/host.js?v=15" defer></script>
+    <script type="module" src="js/host.js?v=16" defer></script>
 </head>
 <body>
     <canvas id="bg-visualizer"></canvas>
@@ -55,7 +55,8 @@
                     </div>
 
                     <div class="lobby-action">
-                        <button id="btn-start-game" class="btn-start-game" disabled>start game</button>
+                        <button id="btn-start-game" class="btn-start-game" disabled>start game ▶</button>
+                        <button id="btn-pick-song" class="btn-start-game btn-secondary" disabled>pick a song 📋</button>
                     </div>
                 </div>
             </div>
@@ -132,6 +133,21 @@
             <!-- Confetti container -->
             <div id="confetti" class="confetti-container"></div>
         </div>
+        <!-- SONG PICKER OVERLAY -->
+        <div id="song-picker-overlay" class="overlay hidden">
+            <div class="song-picker-panel">
+                <div class="song-picker-header">
+                    <h2>choose a song</h2>
+                    <button id="btn-close-picker" class="btn-close">×</button>
+                </div>
+                <div id="song-picker-content" class="song-picker-content">
+                    <!-- Song groups injected here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- CUSTOM SONG NOTIFICATION -->
+        <div id="custom-song-notification" class="notification hidden"></div>
     </div>
 </body>
 </html>

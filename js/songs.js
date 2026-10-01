@@ -214,3 +214,173 @@ export function getNextSongAtDifficulty(level, playedSongIds = new Set(), exclud
 export function hasNextDifficulty(currentLevel) {
   return currentLevel < 5;
 }
+
+// ─────────────────────────────────────────────
+// Custom Song Support & Save-Code Encoding
+// ─────────────────────────────────────────────
+
+/** Ordered palette of every note the sequencer / game can use. */
+export const SEQUENCER_NOTES = [
+  'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+  'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+  'C5'
+];
+
+const REST_TOKEN = 'REST';
+const CODE_PREFIX = 'TOOT';
+const CODE_VERSION = 1;
+
+// Build index maps for encoding
+const NOTE_TO_IDX = {};
+SEQUENCER_NOTES.forEach((n, i) => { NOTE_TO_IDX[n] = i; });
+NOTE_TO_IDX[REST_TOKEN] = SEQUENCER_NOTES.length; // 21
+
+const IDX_TO_NOTE = [...SEQUENCER_NOTES, REST_TOKEN];
+const SYMBOL_COUNT = IDX_TO_NOTE.length; // 22, fits in 5 bits (0-31)
+
+/**
+ * Encode a custom song into a compact alphanumeric save-code.
+ *
+ * Binary format:
+ *   [version:1][nameLen:1][nameBytes:N][bpm:1][timeSig:1][noteCount:1][5-bit-packed notes]
+ *
+ * @param {string} name
+ * @param {number} bpm
+ * @param {number} timeSignature (3 or 4)
+ * @param {string[]} notes - array of note names (e.g. 'C4') and 'REST'
+ * @returns {string} code like "TOOT-abc123..."
+ */
+export function encodeSongToCode(name, bpm, timeSignature, notes) {
+  const nameBytes = new TextEncoder().encode(name.substring(0, 30));
+  const noteBytes = Math.ceil((notes.length * 5) / 8);
+  const totalLen = 1 + 1 + nameBytes.length + 1 + 1 + 1 + noteBytes;
+  const buf = new Uint8Array(totalLen);
+
+  let pos = 0;
+  buf[pos++] = CODE_VERSION;
+  buf[pos++] = nameBytes.length;
+  buf.set(nameBytes, pos); pos += nameBytes.length;
+  buf[pos++] = Math.min(255, Math.max(40, bpm));
+  buf[pos++] = timeSignature;
+  buf[pos++] = notes.length;
+
+  // Pack notes as 5-bit values
+  let bitPos = 0;
+  for (const note of notes) {
+    const idx = NOTE_TO_IDX[note] ?? NOTE_TO_IDX[REST_TOKEN];
+    const byteOff = pos + Math.floor(bitPos / 8);
+    const bitOff = bitPos % 8;
+    buf[byteOff] |= (idx << bitOff) & 0xFF;
+    if (bitOff + 5 > 8 && byteOff + 1 < buf.length) {
+      buf[byteOff + 1] |= (idx >> (8 - bitOff)) & 0xFF;
+    }
+    bitPos += 5;
+  }
+
+  // base64url encode
+  const b64 = btoa(String.fromCharCode(...buf))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${CODE_PREFIX}-${b64}`;
+}
+
+/**
+ * Decode a save-code back into song data.
+ * @param {string} code
+ * @returns {{ name:string, bpm:number, timeSignature:number, notes:string[] } | null}
+ */
+export function decodeSongFromCode(code) {
+  try {
+    let raw = code.trim();
+    if (raw.toUpperCase().startsWith(CODE_PREFIX + '-')) {
+      raw = raw.substring(CODE_PREFIX.length + 1);
+    }
+    // base64url → standard base64
+    const b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+    const binStr = atob(b64);
+    const buf = new Uint8Array(binStr.length);
+    for (let i = 0; i < binStr.length; i++) buf[i] = binStr.charCodeAt(i);
+
+    let pos = 0;
+    const version = buf[pos++];
+    if (version !== CODE_VERSION) return null;
+
+    const nameLen = buf[pos++];
+    const nameBytes = buf.slice(pos, pos + nameLen);
+    pos += nameLen;
+    const name = new TextDecoder().decode(nameBytes);
+
+    const bpm = buf[pos++];
+    const timeSignature = buf[pos++];
+    const noteCount = buf[pos++];
+
+    const notes = [];
+    let bitPos = 0;
+    for (let i = 0; i < noteCount; i++) {
+      const byteOff = pos + Math.floor(bitPos / 8);
+      const bitOff = bitPos % 8;
+      let idx = (buf[byteOff] >> bitOff) & 0x1F;
+      if (bitOff + 5 > 8 && byteOff + 1 < buf.length) {
+        idx |= ((buf[byteOff + 1] << (8 - bitOff)) & 0x1F);
+        idx &= 0x1F;
+      }
+      notes.push(IDX_TO_NOTE[idx] || REST_TOKEN);
+      bitPos += 5;
+    }
+
+    return { name, bpm, timeSignature, notes };
+  } catch (e) {
+    console.error('Failed to decode song code:', e);
+    return null;
+  }
+}
+
+/**
+ * Auto-calculate difficulty (1-5) from unique note count.
+ */
+export function calculateDifficulty(uniqueNoteCount) {
+  if (uniqueNoteCount <= 3) return 1;
+  if (uniqueNoteCount <= 5) return 2;
+  if (uniqueNoteCount <= 7) return 3;
+  if (uniqueNoteCount <= 9) return 4;
+  return 5;
+}
+
+/**
+ * Build a full song object from custom song data.
+ */
+export function buildCustomSong(name, bpm, timeSignature, notes, creator) {
+  const gameNotes = notes.filter(n => n !== REST_TOKEN);
+  const uniqueNotes = [...new Set(gameNotes)].sort(
+    (a, b) => (noteToFrequency(a) || 0) - (noteToFrequency(b) || 0)
+  );
+  const difficulty = calculateDifficulty(uniqueNotes.length);
+  return {
+    id: 'custom-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    name,
+    difficulty,
+    bpm: bpm || 120,
+    timeSignature: timeSignature || 4,
+    notes: gameNotes,
+    allNotes: notes,       // includes rests (for preview playback)
+    uniqueNotes,
+    emoji: '✏️',
+    isCustom: true,
+    creator: creator || 'unknown'
+  };
+}
+
+/** Session-level custom song storage (host-side). */
+export const customSongs = [];
+
+export function addCustomSong(song) {
+  customSongs.push(song);
+  return song;
+}
+
+export function getAllSongs() {
+  return [...songs, ...customSongs];
+}
+
+export function getAllSongsByDifficulty(level) {
+  return getAllSongs().filter(s => s.difficulty === level);
+}

@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Special+Gothic+Condensed+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/common.css">
-    <link rel="stylesheet" href="css/play.css?v=8">
+    <link rel="stylesheet" href="css/play.css?v=9">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
 </head>
 <body>
@@ -27,6 +27,32 @@
     <div id="waiting-view" class="view">
         <h2 id="waiting-name"></h2>
         <div class="pulse-text">connected! waiting for host to start...</div>
+        <button id="btn-create-tune" class="primary-btn" style="margin-top: 30px;">create a tune ✏️</button>
+    </div>
+
+    <div id="sequencer-view" class="view">
+        <div class="seq-header">
+            <button id="btn-seq-back" class="seq-icon-btn">🔙</button>
+            <input type="text" id="seq-name" placeholder="song name" autocomplete="off" autocorrect="off">
+        </div>
+        <div class="seq-controls">
+            <div class="seq-bpm">
+                <label for="seq-bpm-slider">bpm: <span id="seq-bpm-val">120</span></label>
+                <input type="range" id="seq-bpm-slider" min="60" max="160" value="120">
+            </div>
+            <button id="btn-seq-timesig" class="seq-timesig-btn">4/4</button>
+        </div>
+        
+        <div id="seq-strip" class="seq-strip"></div>
+        
+        <div id="seq-palette" class="seq-palette"></div>
+        
+        <div class="seq-actions">
+            <button id="btn-seq-preview" class="seq-action-btn" title="preview">▶</button>
+            <button id="btn-seq-submit" class="seq-action-btn" title="submit to game">📤</button>
+            <button id="btn-seq-save" class="seq-action-btn" title="save code">💾</button>
+            <button id="btn-seq-load" class="seq-action-btn" title="load code">📂</button>
+        </div>
     </div>
 
     <div id="playing-view" class="view">
@@ -61,6 +87,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/play.js?v=8"></script>
+    <script type="module" src="js/play.js?v=9"></script>
 </body>
 </html>

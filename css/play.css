@@ -525,3 +525,162 @@ input:focus {
     margin: 20px 0;
     text-transform: lowercase;
 }
+
+/* Sequencer View */
+#sequencer-view {
+    padding: 10px;
+    gap: 12px;
+    justify-content: flex-start;
+}
+
+.seq-header {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+}
+
+.seq-icon-btn, .seq-action-btn, .seq-timesig-btn {
+    background: #232340;
+    border: 1px solid #303050;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.seq-icon-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+#seq-name {
+    flex-grow: 1;
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 1.2rem;
+}
+
+.seq-controls {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 5px;
+}
+
+.seq-bpm {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+}
+
+.seq-bpm input[type="range"] {
+    width: 120px;
+    margin: 0;
+}
+
+.seq-timesig-btn {
+    padding: 6px 12px;
+    font-size: 1.1rem;
+    font-family: var(--font-display);
+}
+
+.seq-strip {
+    display: flex;
+    width: 100%;
+    height: 60px;
+    overflow-x: auto;
+    background: #1a1a2e;
+    border-radius: 8px;
+    padding: 10px;
+    gap: 6px;
+    align-items: center;
+    border: 1px solid #303050;
+}
+
+.seq-chip {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    color: #000;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+}
+
+.seq-chip.rest {
+    background: #555;
+    color: white;
+}
+
+.seq-chip.playing {
+    outline: 2px solid white;
+    transform: scale(1.1);
+}
+
+.seq-chip sub {
+    font-size: 0.6em;
+    bottom: -0.2em;
+}
+
+.seq-palette {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.seq-palette-btn {
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    color: #000;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.seq-palette-btn sub {
+    font-size: 0.6em;
+    bottom: -0.2em;
+}
+
+.seq-palette-btn:active {
+    transform: scale(0.9);
+}
+
+.seq-palette-btn.rest {
+    background: #555;
+    color: white;
+}
+
+.seq-actions {
+    display: flex;
+    width: 100%;
+    justify-content: space-around;
+    margin-top: auto;
+    padding-bottom: 10px;
+}
+
+.seq-action-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+}

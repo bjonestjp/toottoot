@@ -1,8 +1,8 @@
-import { initAudio, playNote, startNote, stopNote, playSuccess, playFail, startBeat, stopBeat, setBeatEnabled, isBeatEnabled } from './audio.js?v=15';
-import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty } from './songs.js?v=15';
-import { generateRoomCode } from './room-code.js?v=15';
-import { HostTransport } from './transport.js?v=15';
-import { initVisualizer, triggerNotePulse, triggerBeatTick, setVisualizerMode } from './visualizer.js?v=15';
+import { initAudio, playNote, startNote, stopNote, playSuccess, playFail, startBeat, stopBeat, setBeatEnabled, isBeatEnabled } from './audio.js?v=16';
+import { songs, getSongById, getRandomSong, getUniqueNotes, DIFFICULTY_LEVELS, getSongsByDifficulty, getNextSongAtDifficulty, hasNextDifficulty, buildCustomSong, addCustomSong, customSongs, getAllSongs, getAllSongsByDifficulty } from './songs.js?v=16';
+import { generateRoomCode } from './room-code.js?v=16';
+import { HostTransport } from './transport.js?v=16';
+import { initVisualizer, triggerNotePulse, triggerBeatTick, setVisualizerMode } from './visualizer.js?v=16';
 
 // DOM Elements
 const views = {
@@ -43,6 +43,10 @@ const btnHostStartPerformance = document.getElementById('btn-host-start-performa
 const elWinTime = document.getElementById('win-time');
 const elWinFails = document.getElementById('win-fails');
 const elWinActions = document.getElementById('win-actions');
+const elSongPickerOverlay = document.getElementById('song-picker-overlay');
+const elSongPickerContent = document.getElementById('song-picker-content');
+const btnPickSong = document.getElementById('btn-pick-song');
+const btnClosePicker = document.getElementById('btn-close-picker');
 
 // State
 let gameState = 'lobby'; // lobby | countdown | playing | fail | win
@@ -169,6 +173,12 @@ function init() {
     });
 
     btnStartGame.addEventListener('click', () => startGame());
+    if (btnPickSong) {
+        btnPickSong.addEventListener('click', () => openSongPicker());
+    }
+    if (btnClosePicker) {
+        btnClosePicker.addEventListener('click', () => closeSongPicker());
+    }
     if (btnHostStartPerformance) {
         btnHostStartPerformance.addEventListener('click', () => {
             startPerformanceCountdown();
@@ -260,6 +270,21 @@ function handlePlayerMessage(playerId, data) {
         if (subMode === 'practice' && gameState === 'playing') {
             startPerformanceCountdown();
         }
+    } else if (data.type === 'custom-song') {
+        if (gameState === 'lobby') {
+            const song = buildCustomSong(
+                data.song.name,
+                data.song.bpm,
+                data.song.timeSignature,
+                data.song.notes,
+                data.song.creator
+            );
+            addCustomSong(song);
+            if (!elSongPickerOverlay.classList.contains('hidden')) {
+                renderSongPicker();
+            }
+            showCustomSongNotification(song);
+        }
     }
 }
 
@@ -275,6 +300,7 @@ function updatePlayerList() {
     }
     
     btnStartGame.disabled = players.length < 2;
+    if (btnPickSong) btnPickSong.disabled = players.length < 2;
 }
 
 function broadcastPlayerList() {
@@ -694,4 +720,90 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
+}
+
+function renderSongPicker() {
+    if (!elSongPickerContent) return;
+    
+    let html = '';
+    
+    // Standard songs by difficulty
+    for (const diff of DIFFICULTY_LEVELS) {
+        const diffSongs = getAllSongsByDifficulty(diff.level).filter(s => !s.isCustom);
+        if (diffSongs.length === 0) continue;
+        
+        html += `<div class="song-group">
+            <h3>${diff.name.toLowerCase()}</h3>
+            <div class="song-cards">`;
+            
+        diffSongs.forEach(song => {
+            html += `
+                <div class="song-card" data-song-id="${song.id}">
+                    <div class="card-emoji">${song.emoji || '🎵'}</div>
+                    <div class="card-details">
+                        <div class="card-name">${song.name.toLowerCase()}</div>
+                        <div class="card-notes">${song.notes.length} notes</div>
+                    </div>
+                </div>`;
+        });
+        
+        html += `</div></div>`;
+    }
+    
+    // Custom songs
+    if (customSongs.length > 0) {
+        html += `<div class="song-group custom">
+            <h3>custom songs ✏️</h3>
+            <div class="song-cards">`;
+            
+        customSongs.forEach(song => {
+            html += `
+                <div class="song-card custom-card" data-song-id="${song.id}">
+                    <div class="card-emoji">${song.emoji || '🎵'}</div>
+                    <div class="card-details">
+                        <div class="card-name">${song.name.toLowerCase()}</div>
+                        <div class="card-creator">by ${song.creator.toLowerCase()}</div>
+                        <div class="card-notes">${song.notes.length} notes</div>
+                    </div>
+                </div>`;
+        });
+        
+        html += `</div></div>`;
+    }
+    
+    elSongPickerContent.innerHTML = html;
+    
+    // Wire up clicks
+    elSongPickerContent.querySelectorAll('.song-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const songId = card.dataset.songId;
+            const song = getAllSongs().find(s => s.id === songId);
+            if (song) {
+                closeSongPicker();
+                startGame(song);
+            }
+        });
+    });
+}
+
+function openSongPicker() {
+    if (gameState !== 'lobby') return;
+    renderSongPicker();
+    elSongPickerOverlay.classList.remove('hidden');
+}
+
+function closeSongPicker() {
+    elSongPickerOverlay.classList.add('hidden');
+}
+
+function showCustomSongNotification(song) {
+    const elNotify = document.getElementById('custom-song-notification');
+    if (!elNotify) return;
+    
+    elNotify.textContent = `${song.creator.toLowerCase()} submitted: ${song.name.toLowerCase()}`;
+    elNotify.classList.remove('hidden');
+    
+    setTimeout(() => {
+        elNotify.classList.add('hidden');
+    }, 3000);
 }
